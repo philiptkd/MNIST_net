@@ -1,19 +1,3 @@
-/*
- * TODO: create and train a neural net to classify handwritten digits from the MNIST data set
- * 
- * figure out how to get the data
- * 		all at once? one piece at a time?	(all at once. the file is only about 46MB)
- * learn to access the data				(done)
- * create the Net class				(done)
- * 		constructor parameters?
- * figure out how to find the gradient of a function
- * learn how to randomly select arrayList elements for stochastic gradient descent
- * write method for getting net's output with given input and weights/biases
- * write sigmoid neuron class
- * at completion of training, write final weights/biases to a file
- * test on testing set
- */
-
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -34,7 +18,6 @@ public class Net {
 		FileChannel file = FileChannel.open(path);			//open file
 		buffer = file.map(MapMode.READ_ONLY, 16, 60000);		//skip 16 byte header
 		inputLayer = new byte[28*28];						//initialize byte array
-		loadInputLayer(0);									//read bytes from buffer
 		
 		//initialize hidden layer
 		hiddenLayer = new Neuron[numHiddenNodes];
@@ -52,8 +35,8 @@ public class Net {
 	}
 	
 	//method to read from the MappedByteBuffer of the images file to the inputLayer
-	public void loadInputLayer(int offset) {
-		buffer.get(inputLayer, offset, 28*28);
+	public void loadInputLayer(int input) {
+		buffer.get(inputLayer, input*28*28, 28*28);
 	}
 	
 	//taking these inner products could probably be done more efficiently
@@ -74,7 +57,7 @@ public class Net {
 	}
 	
 	public double sigmoidFunction(double input) {
-		return 1/(1+Math.pow(Math.E, -input));
+		return 1.0/(1.0+Math.pow(Math.E, -input));
 	}
 	
 	//updates the output values of all neurons in the net
