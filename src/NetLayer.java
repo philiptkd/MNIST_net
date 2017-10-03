@@ -1,5 +1,0 @@
-public enum NetLayer {
-	INPUTLAYER,
-	HIDDENLAYER,
-	OUTPUTLAYER;
-}

@@ -5,45 +5,69 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import org.ojalgo.matrix.*;
+import org.ojalgo.matrix.BasicMatrix.Builder;
+import org.ojalgo.random.Normal;
 
 public class Net {
 	MappedByteBuffer buffer;
 	byte[] inputLayer;
-	Neuron[] hiddenLayer;
-	Neuron[] outputLayer;
 	ByteBuffer labels;
-	Neuron[][] layers;
+	
+	//factory to initialize arrays and matrices
+    final BasicMatrix.Factory<PrimitiveMatrix> matrixFactory = PrimitiveMatrix.FACTORY;
+	
+	//arrays to hold a, z, b, and delta values
+	PrimitiveMatrix  inputLayerA;
+	
+	PrimitiveMatrix  hiddenLayerA;
+	PrimitiveMatrix  hiddenLayerZ;
+	PrimitiveMatrix  hiddenLayerB;
+	PrimitiveMatrix  hiddenLayerDelta;
+	
+	PrimitiveMatrix  outputLayerA;
+	PrimitiveMatrix  outputLayerZ;
+	PrimitiveMatrix  outputLayerB;	
+	PrimitiveMatrix  outputLayerDelta;
+	
+	
+	//matrices to hold weights
+	PrimitiveMatrix  weights1;
+	PrimitiveMatrix  weights2;
 	
 	public Net(int numInputNodes, int numHiddenNodes, int numOutputNodes) {		
-		
+		inputLayer = new byte[numInputNodes];						//initialize byte array
+
 		try {
 			//initialize input layer
 			Path imgPath = Paths.get("train-images.idx3-ubyte");	
 			FileChannel imgFile = null;
 			imgFile = FileChannel.open(imgPath);			//open file
-			buffer = imgFile.map(MapMode.READ_ONLY, 16, 60000*28*28);		//skip 16 byte header
-			inputLayer = new byte[28*28];						//initialize byte array
+			buffer = imgFile.map(MapMode.READ_ONLY, 16, 60000*numInputNodes);		//skip 16 byte header
 			if(imgFile != null) {
 				imgFile.close(); 			//close file
 			}
 		} catch(Exception e) {
 			System.out.println(e.toString());
 		}
-		
-		
+				
+        //initialize input layer
+        inputLayerA = matrixFactory.makeZero(numInputNodes, 1);
+        
 		//initialize hidden layer
-		hiddenLayer = new Neuron[numHiddenNodes];
-		for(int i=0; i<hiddenLayer.length; i++) {
-			hiddenLayer[i] = new Neuron(numInputNodes);
-			hiddenLayer[i].layer = NetLayer.HIDDENLAYER;
-		}
+		hiddenLayerA = matrixFactory.makeZero(numHiddenNodes, 1);
+		hiddenLayerZ = matrixFactory.makeZero(numHiddenNodes, 1);
+		hiddenLayerB = matrixFactory.makeFilled(numHiddenNodes, 1, new Normal());
 		
 		//initialize output layer
-		outputLayer = new Neuron[numOutputNodes];
-		for(int i=0; i<outputLayer.length; i++) {
-			outputLayer[i] = new Neuron(numHiddenNodes);
-			outputLayer[i].layer = NetLayer.OUTPUTLAYER;
-		}
+		outputLayerA = matrixFactory.makeZero(numOutputNodes, 1);
+		outputLayerZ = matrixFactory.makeZero(numOutputNodes, 1);
+		outputLayerB = matrixFactory.makeFilled(numOutputNodes, 1, new Normal());
+
+		//initialize weight matrices
+	    weights1 = matrixFactory.makeFilled(numHiddenNodes, numInputNodes, new Normal());
+	    weights2 = matrixFactory.makeFilled(numOutputNodes, numHiddenNodes, new Normal());
+
 		
 		try {
 			//get correct labels for each input image
@@ -58,117 +82,74 @@ public class Net {
 		} catch(Exception e) {
 			System.out.println(e.toString());
 		}
-		
-		//initialize layers array
-		layers = new Neuron[2][];
-		layers[0] = hiddenLayer;
-		layers[1] = outputLayer;
 	}
 	
 	//method to read from the MappedByteBuffer of the images file to the inputLayer
 	public void loadInputLayer(int input) {
-		buffer.position(input*28*28);	//set next read position in buffer
+		buffer.position(input*inputLayer.length);	//set next read position in buffer
 		buffer.get(inputLayer);		//reads as many bytes as can fit in inputLayer array
+		
+		//put input data into usable matrix 
+		//there is probably a better way to get MappedByteBuffer into a PrimitiveMatrix
+		Builder<PrimitiveMatrix> matrixBuilder = inputLayerA.copy();	//PrimitiveMatrix is immutable
+		
+		for(int i=0; i<inputLayer.length; i++) {
+			matrixBuilder.add(i, 0, inputLayer[i]);
+		}
+		
+		inputLayerA = matrixBuilder.build();
 	}
 	
-	//taking these inner products could probably be done more efficiently
-	public void calcNodeOutput(Neuron node) {
-		double input = 0;
-		if(node.layer == NetLayer.HIDDENLAYER) {		//if we want the output of a hidden layer neuron
-			for(int i=0; i<inputLayer.length; i++) {
-				input = input + (double)((char)inputLayer[i])*node.inWeights[i];	//inner product of previous layer and their associated weights
-			}
-		}
-		else if(node.layer == NetLayer.OUTPUTLAYER) {	//if we want the output of an output layer neuron
-			for(int i=0; i<hiddenLayer.length; i++) {
-				input = input + hiddenLayer[i].output*node.inWeights[i];	//inner product of previous layer and their associated weights
-			}
-		}
-		input = input + node.bias;
-		node.output = sigmoidFunction(input);
-	}
-	
-	public double sigmoidFunction(double input) {
+	public double sigma(double input) {
 		return 1.0/(1.0+Math.pow(Math.E, -input));
 	}
 	
 	//updates the output values of all neurons in the net
 	public void calcNetOutput() {
-		for(Neuron node : hiddenLayer) {
-			calcNodeOutput(node);
+		//z_1 = w_1*a_0 + b_1
+		hiddenLayerZ = weights1.multiply(inputLayerA);
+		hiddenLayerZ.add(hiddenLayerB);
+		
+		Builder<PrimitiveMatrix> matrixBuilder = hiddenLayerA.copy();	//PrimitiveMatrix is immutable
+		int numHiddenNodes = (int)hiddenLayerA.countRows();
+		
+		//a_1 = sigma(z_1)
+		for(int i=0; i<numHiddenNodes; i++) {
+			matrixBuilder.add(i, 0, sigma(hiddenLayerZ.get(i, 0)));
 		}
-		for(Neuron node : outputLayer) {
-			calcNodeOutput(node);
+		hiddenLayerA = matrixBuilder.build();
+		
+		//z_2 = w_2*a_1 + b_2
+		outputLayerZ = weights2.multiply(hiddenLayerA);	
+		outputLayerZ.add(outputLayerB);					//outputLayerZ = outputLayerZ + outputLayerB
+		
+		matrixBuilder = outputLayerA.copy();	//PrimitiveMatrix is immutable
+		int numOutputNodes = (int)outputLayerA.countRows();
+		
+		//a_2 = sigma(z_2)
+		for(int i=0; i<numOutputNodes; i++) {
+			matrixBuilder.add(i, 0, sigma(outputLayerZ.get(i, 0)));	
 		}
+		outputLayerA = matrixBuilder.build();
 	}
 	
-	//C(w,b) = Sum_x ||y(x)-a||^2/(2n)
-	public double miniBatchCost(int miniBatch, int miniBatchSize, int[] shuffledList) {
-		double cost = 0.0;
-		double workingVector[] = new double[outputLayer.length];	//vector for y(x) - a
-		
-		for(int input=miniBatch*miniBatchSize; input<(miniBatch+1)*miniBatchSize; input++) {	//for each training input, x
-			loadInputLayer(input);	//puts training image data in input layer
-			calcNetOutput();	//find output, a	(stored in output nodes)
-			double sumSquares = 0.0;	//to hold ||y(x)-a||^2 for each input image, x
-			
-			for(int i=0; i<workingVector.length; i++) {	
-				//y(x) - a
-				//y(x) has 1.0 for expected output index and 0.0 for all others
-				if(i == labels.get(input)) {
-					workingVector[i] = 1.0 - outputLayer[i].output;
-				}
-				else { workingVector[i] = 0.0 - outputLayer[i].output; }
-				
-				//sum squares of difference vector to get ||y(x)-a||^2
-				sumSquares = sumSquares + workingVector[i]*workingVector[i];
-			}
-			
-			cost = cost + sumSquares;	//Sum_x ||y(x)-a||^2
-		}
-		cost = cost/(2*miniBatchSize);	//divide by 2n
-		
-		return cost;
-	}
-	
-	//dC/dw_i = (C_{w_i + eps} - C_{w_i})/eps
 	public void SGD(int miniBatch, int miniBatchSize, int[] shuffledList, double learningRate) {
-		double cost = miniBatchCost(miniBatch, miniBatchSize, shuffledList);	//calculate cost function for current weights/biases and miniBatch
+		//initialize delta arrays
+		hiddenLayerDelta = matrixFactory.makeZero(hiddenLayerA.countRows(), 1);
+		outputLayerDelta = matrixFactory.makeZero(outputLayerA.countRows(), 1);
 		
-		//update each weight/bias
-		for(Neuron[] layer : layers) {
-			for(Neuron node : layer) {		//for each node in the net
-				//for the node's weights
-				for(int i=0; i<node.inWeights.length; i++) {
-					double eps = calcEps(node.inWeights[i]);
-					node.inWeights[i] = node.inWeights[i] + eps;	//change to w_i + eps
-					double newCost = miniBatchCost(miniBatch, miniBatchSize, shuffledList);		//C_{w_i + eps}
-					double partialW = (newCost - cost)/eps;		//dC/dw_i = (C_{w_i + eps} - C_{w_i})/eps
-					node.inWeights[i] = node.inWeights[i] - eps - learningRate*partialW;	//w_i' = w_i - learningRate*dC/dw_i 
-				}
-				//for the node's bias
-				double eps = calcEps(node.bias);
-				node.bias = node.bias + eps;
-				double newCost = miniBatchCost(miniBatch, miniBatchSize, shuffledList);		//C_{w_i + eps}
-				double partialB = (newCost - cost)/eps;		//dC/dw_i = (C_{w_i + eps} - C_{w_i})/eps
-				node.bias = node.bias - eps - learningRate*partialB;	//b_i' = b_i - learningRate*dC/db_i
-			}
+		for(int input=miniBatch*miniBatchSize; input<(miniBatch+1)*miniBatchSize; input++) {
+			loadInputLayer(input);
+			calcNetOutput();
+			backpropagate();
 		}
+		//divide all elements in delta matrix by miniBatchSize to get averages
+		//V' = V - learningRate*grad(C(V))
 	} 
 	
-	//EPSILON = x0*sqrt(Math.pow(2, -53))
-	//ensures round-off and truncation errors are of the same order
-	public static double calcEps(double x0) {
-		double eps;
-		double sqrtUlp = Math.sqrt(Math.pow(2, -53));	//the square root of the precision of the double type
-		eps = x0*sqrtUlp;
-		
-		if(eps != 0.0) {
-			return eps;
-		}
-		else {
-			return 0.01*sqrtUlp;	//arbitrary
-		}
+	public void backpropagate() {
+		//calculate output deltas, adding to outputLayerDelta
+		//calculate hidden deltas, adding to hiddenLayerDelta
 	}
 	
 	public double getErrorRate() throws IOException {		
@@ -199,9 +180,9 @@ public class Net {
 			calcNetOutput();	//get the output for this test image
 			int output = 0;		//the index of the output node with highest activation energy
 			double highest = 0.0; 	//said highest activation energy
-			for(int j=0; j<outputLayer.length; j++) {	//for each output node
-				if(outputLayer[j].output > highest) {	//find the one with highest activation energy
-					highest = outputLayer[j].output;
+			for(int j=0; j<outputLayerA.countRows(); j++) {	//for each output node
+				if(outputLayerA.get(j, 0) > highest) {	//find the one with highest activation energy
+					highest = outputLayerA.get(j, 0);
 					output = j;
 				}
 			}
