@@ -108,7 +108,7 @@ public class Net {
 	public void calcNetOutput() {
 		//z_1 = w_1*a_0 + b_1
 		hiddenLayerZ = weights1.multiply(inputLayerA);
-		hiddenLayerZ.add(hiddenLayerB);
+		hiddenLayerZ = hiddenLayerZ.add(hiddenLayerB);
 		
 		Builder<PrimitiveMatrix> matrixBuilder = hiddenLayerA.copy();	//PrimitiveMatrix is immutable
 		int numHiddenNodes = (int)hiddenLayerA.countRows();
@@ -121,7 +121,7 @@ public class Net {
 		
 		//z_2 = w_2*a_1 + b_2
 		outputLayerZ = weights2.multiply(hiddenLayerA);	
-		outputLayerZ.add(outputLayerB);					//outputLayerZ = outputLayerZ + outputLayerB
+		outputLayerZ = outputLayerZ.add(outputLayerB);					//outputLayerZ = outputLayerZ + outputLayerB
 		
 		matrixBuilder = outputLayerA.copy();	//PrimitiveMatrix is immutable
 		int numOutputNodes = (int)outputLayerA.countRows();
@@ -141,15 +141,56 @@ public class Net {
 		for(int input=miniBatch*miniBatchSize; input<(miniBatch+1)*miniBatchSize; input++) {
 			loadInputLayer(input);
 			calcNetOutput();
-			backpropagate();
+			backpropagate(input);
 		}
-		//divide all elements in delta matrix by miniBatchSize to get averages
+		
+		//divide all elements in delta matrices by miniBatchSize to get averages
+		hiddenLayerDelta.divide(miniBatchSize);
+		outputLayerDelta.divide(miniBatchSize);
+		
 		//V' = V - learningRate*grad(C(V))
+		
+		//update b values. dC/db = delta
+		outputLayerB = outputLayerB.subtract(outputLayerDelta.multiply(learningRate));	//b = b - learningRate*outDelta
+		hiddenLayerB = hiddenLayerB.subtract(hiddenLayerDelta.multiply(learningRate));	//b = b - learningRate*hidDelta
+		
+		//update weights. dC/dw = (delta^L)* (a^(L-1))^T
+		weights2 = weights2.subtract(outputLayerDelta.multiply(hiddenLayerA.transpose()).multiply(learningRate)); 	//w = w - learningRate*outDelta*aHid^T
+		weights1 = weights1.subtract(hiddenLayerDelta.multiply(inputLayerA.transpose()).multiply(learningRate));	//w = w - learningRate*hidDelta*aIn^T
 	} 
 	
-	public void backpropagate() {
+	public void backpropagate(int input) {
 		//calculate output deltas, adding to outputLayerDelta
+		int correctOutput = labels.get(input);				//correct classification for this input
+		
+		//creating Y vector
+		int outputRows = (int)outputLayerA.countRows(); 	//number of elements in output layer
+		PrimitiveMatrix outputLayerY = matrixFactory.makeZero(outputRows, 1);
+		Builder<PrimitiveMatrix> matrixBuilder = outputLayerY.copy(); 		//mutable copy
+		matrixBuilder.add(correctOutput, 0, 1.0); 		//make the one correct element of Y 1
+		outputLayerY = matrixBuilder.build();
+		
+		//delta = (y-a)*a(a-1)			(all operations are element-wise)
+		PrimitiveMatrix tmpOutDelta = matrixFactory.makeZero(outputRows, 0);
+		tmpOutDelta = outputLayerY.subtract(outputLayerA);	//tmp = (y-a)
+		tmpOutDelta = tmpOutDelta.multiplyElements(outputLayerA);	//tmp = (y-a)*a
+		tmpOutDelta = tmpOutDelta.multiplyElements(outputLayerA.subtract(1.0));	//tmp = (y-a)*a*(a-1)
+		
+		//add to output delta vector
+		outputLayerDelta = outputLayerDelta.add(tmpOutDelta);
+		
+		
 		//calculate hidden deltas, adding to hiddenLayerDelta
+		int hiddenRows = (int)hiddenLayerA.countRows();		//number of elements in hidden layer
+		PrimitiveMatrix tmpHiddenDelta = matrixFactory.makeZero(hiddenRows, 1);
+		
+		//delta^L = (w^(L_1))^T * delta^(L+1) . a(1-a)		(where . is element-wise multiplication)
+		tmpHiddenDelta = (weights2.transpose()).multiply(tmpOutDelta);	//w^T*outDelta
+		tmpHiddenDelta = tmpHiddenDelta.multiplyElements(hiddenLayerA); //w^T*outDelta . a
+		tmpHiddenDelta = tmpHiddenDelta.multiplyElements(hiddenLayerA.negate().add(1.0)); //w^T*outDelta . a . (-a + 1)
+		
+		//add to hidden delta vector
+		hiddenLayerDelta = hiddenLayerDelta.add(tmpHiddenDelta);
 	}
 	
 	public double getErrorRate() throws IOException {		
@@ -164,7 +205,7 @@ public class Net {
 		}
 		
 		//get correct labels for each test image
-		labels.limit(10000);		//sets the number of bytes to be held in the buffer
+		labels.limit(numTestImages);		//sets the number of bytes to be held in the buffer
 		Path labelPath = Paths.get("t10k-labels.idx1-ubyte");	
 		FileChannel labelFile = null;
 		labelFile = FileChannel.open(labelPath);			//open file
