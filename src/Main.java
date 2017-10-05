@@ -17,27 +17,53 @@
 
 import java.io.IOException;
 import java.util.Random;
+import org.ojalgo.random.*;
+
+import org.ojalgo.matrix.BasicMatrix;
+import org.ojalgo.matrix.PrimitiveMatrix;
 
 public class Main {
 	public static void main(String[] args) throws IOException{
+		Net myNet = new Net(28*28, 30, 10);
 		
-		Net myNet = new Net(28*28, 15, 10);
+//		myNet.loadInputLayer(0, myNet.buffer);
+//		for(int i=0; i<28; i++) {
+//			for(int j=0; j<28; j++) {
+//				System.out.print(myNet.inputLayerA.get(i*28 + j, 0) + " ");
+//			}
+//			System.out.println("");
+//		}
+		
+		
 		trainNet(myNet, 30, 10, 3.0);
 		System.out.println(myNet.getErrorRate());
 	}
 	
-	private static void trainNet(Net myNet, int epochs, int miniBatchSize, double learningRate) {		
+	public static void printMatrix(PrimitiveMatrix M) {
+		for(int i=0; i<M.countRows(); i++) {
+			System.out.print("row " + i + ": ");
+			for(int j=0; j<M.countColumns(); j++) {
+				System.out.print(M.get(i,j) + " ");
+			}
+			System.out.println("");
+		}
+	}
+	
+	private static void trainNet(Net myNet, int epochs, int miniBatchSize, double learningRate) throws IOException{		
 		//create a list that we can shuffle in order to randomize our mini-batches
 		int[] shuffledList = new int[60000];
 		for(int i=0; i<shuffledList.length; i++) {
 			shuffledList[i] = i;
 		}
-			
+		
 		for(int epoch=0; epoch<epochs; epoch++) {	//for each epoch
-			shuffle(shuffledList);		//shuffle the training set order
+			shuffle(shuffledList);		//shuffle the training set order			
+			
 			for(int miniBatch=0; miniBatch<shuffledList.length/miniBatchSize; miniBatch++) {	//for each miniBatch
 				myNet.SGD(miniBatch, miniBatchSize, shuffledList, learningRate);	//update weights/biases via stochastic gradient descent
-			}			
+			}
+			
+			System.out.println("accuracy after epoch " + epoch + ": " + myNet.getErrorRate());
 		}
 	}
 	

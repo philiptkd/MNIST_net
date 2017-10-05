@@ -11,13 +11,13 @@ import org.ojalgo.random.Normal;
 
 public class Net {
 	MappedByteBuffer buffer;
-	byte[] inputLayer;
 	ByteBuffer labels;
 	
 	//factory to initialize arrays and matrices
     final BasicMatrix.Factory<PrimitiveMatrix> matrixFactory = PrimitiveMatrix.FACTORY;
 	
 	//arrays to hold a, z, b, and delta values
+    byte[] inputLayer;
 	PrimitiveMatrix  inputLayerA;
 	
 	PrimitiveMatrix  hiddenLayerA;
@@ -85,16 +85,16 @@ public class Net {
 	}
 	
 	//method to read from the MappedByteBuffer of the images file to the inputLayer
-	public void loadInputLayer(int input) {
-		buffer.position(input*inputLayer.length);	//set next read position in buffer
-		buffer.get(inputLayer);		//reads as many bytes as can fit in inputLayer array
+	public void loadInputLayer(int input, MappedByteBuffer thisBuffer) {
+		thisBuffer.position(input*inputLayer.length);	//set next read position in buffer
+		thisBuffer.get(inputLayer);		//reads as many bytes as can fit in inputLayer array
 		
 		//put input data into usable matrix 
 		//there is probably a better way to get MappedByteBuffer into a PrimitiveMatrix
 		Builder<PrimitiveMatrix> matrixBuilder = inputLayerA.copy();	//PrimitiveMatrix is immutable
 		
 		for(int i=0; i<inputLayer.length; i++) {
-			matrixBuilder.add(i, 0, inputLayer[i]);
+			matrixBuilder.set(i, 0, Byte.toUnsignedInt(inputLayer[i]));
 		}
 		
 		inputLayerA = matrixBuilder.build();
@@ -115,7 +115,7 @@ public class Net {
 		
 		//a_1 = sigma(z_1)
 		for(int i=0; i<numHiddenNodes; i++) {
-			matrixBuilder.add(i, 0, sigma(hiddenLayerZ.get(i, 0)));
+			matrixBuilder.set(i, 0, sigma(hiddenLayerZ.get(i, 0)));
 		}
 		hiddenLayerA = matrixBuilder.build();
 		
@@ -128,7 +128,7 @@ public class Net {
 		
 		//a_2 = sigma(z_2)
 		for(int i=0; i<numOutputNodes; i++) {
-			matrixBuilder.add(i, 0, sigma(outputLayerZ.get(i, 0)));	
+			matrixBuilder.set(i, 0, sigma(outputLayerZ.get(i, 0)));	
 		}
 		outputLayerA = matrixBuilder.build();
 	}
@@ -138,15 +138,16 @@ public class Net {
 		hiddenLayerDelta = matrixFactory.makeZero(hiddenLayerA.countRows(), 1);
 		outputLayerDelta = matrixFactory.makeZero(outputLayerA.countRows(), 1);
 		
-		for(int input=miniBatch*miniBatchSize; input<(miniBatch+1)*miniBatchSize; input++) {
-			loadInputLayer(input);
+		for(int i=0; i<miniBatchSize; i++) {
+			int input = shuffledList[miniBatch*miniBatchSize + i];
+			loadInputLayer(input, buffer);
 			calcNetOutput();
 			backpropagate(input);
 		}
 		
 		//divide all elements in delta matrices by miniBatchSize to get averages
-		hiddenLayerDelta.divide(miniBatchSize);
-		outputLayerDelta.divide(miniBatchSize);
+		hiddenLayerDelta = hiddenLayerDelta.divide(miniBatchSize);
+		outputLayerDelta = outputLayerDelta.divide(miniBatchSize);
 		
 		//V' = V - learningRate*grad(C(V))
 		
@@ -167,11 +168,11 @@ public class Net {
 		int outputRows = (int)outputLayerA.countRows(); 	//number of elements in output layer
 		PrimitiveMatrix outputLayerY = matrixFactory.makeZero(outputRows, 1);
 		Builder<PrimitiveMatrix> matrixBuilder = outputLayerY.copy(); 		//mutable copy
-		matrixBuilder.add(correctOutput, 0, 1.0); 		//make the one correct element of Y 1
+		matrixBuilder.set(correctOutput, 0, 1.0); 		//make the one correct element of Y 1
 		outputLayerY = matrixBuilder.build();
 		
 		//delta = (y-a)*a(a-1)			(all operations are element-wise)
-		PrimitiveMatrix tmpOutDelta = matrixFactory.makeZero(outputRows, 0);
+		PrimitiveMatrix tmpOutDelta = matrixFactory.makeZero(outputRows, 1);
 		tmpOutDelta = outputLayerY.subtract(outputLayerA);	//tmp = (y-a)
 		tmpOutDelta = tmpOutDelta.multiplyElements(outputLayerA);	//tmp = (y-a)*a
 		tmpOutDelta = tmpOutDelta.multiplyElements(outputLayerA.subtract(1.0));	//tmp = (y-a)*a*(a-1)
@@ -184,10 +185,10 @@ public class Net {
 		int hiddenRows = (int)hiddenLayerA.countRows();		//number of elements in hidden layer
 		PrimitiveMatrix tmpHiddenDelta = matrixFactory.makeZero(hiddenRows, 1);
 		
-		//delta^L = (w^(L_1))^T * delta^(L+1) . a(1-a)		(where . is element-wise multiplication)
+		//delta^L = (w^(L+1))^T * delta^(L+1) . a(1-a)		(where . is element-wise multiplication)
 		tmpHiddenDelta = (weights2.transpose()).multiply(tmpOutDelta);	//w^T*outDelta
 		tmpHiddenDelta = tmpHiddenDelta.multiplyElements(hiddenLayerA); //w^T*outDelta . a
-		tmpHiddenDelta = tmpHiddenDelta.multiplyElements(hiddenLayerA.negate().add(1.0)); //w^T*outDelta . a . (-a + 1)
+		tmpHiddenDelta = tmpHiddenDelta.multiplyElements((hiddenLayerA.negate()).add(1.0)); //w^T*outDelta . a . (-a + 1)
 		
 		//add to hidden delta vector
 		hiddenLayerDelta = hiddenLayerDelta.add(tmpHiddenDelta);
@@ -199,17 +200,17 @@ public class Net {
 		Path imgPath = Paths.get("t10k-images.idx3-ubyte");	
 		FileChannel imgFile = null;
 		imgFile = FileChannel.open(imgPath);			//open file
-		buffer = imgFile.map(MapMode.READ_ONLY, 16, numTestImages*28*28);		//skip 16 byte header
+		MappedByteBuffer buffer2 = imgFile.map(MapMode.READ_ONLY, 16, numTestImages*28*28);		//skip 16 byte header
 		if(imgFile != null) {
 			imgFile.close(); 			//close file
 		}
 		
 		//get correct labels for each test image
-		labels.limit(numTestImages);		//sets the number of bytes to be held in the buffer
+		ByteBuffer labels2 = ByteBuffer.allocate(numTestImages);		//sets the number of bytes to be held in the buffer
 		Path labelPath = Paths.get("t10k-labels.idx1-ubyte");	
 		FileChannel labelFile = null;
 		labelFile = FileChannel.open(labelPath);			//open file
-		labelFile.read(labels, 8);		//attempts to read as many bytes into the labels ByteBuffer within its limit
+		labelFile.read(labels2, 8);		//attempts to read as many bytes into the labels ByteBuffer within its limit
 		if(labelFile != null) {
 			labelFile.close();
 		}
@@ -217,7 +218,7 @@ public class Net {
 		int numWrong = 0;	//the number of test images the net classifies incorrectly
 		
 		for(int i=0; i<numTestImages; i++) {	//for each test image
-			loadInputLayer(i);	//load test image into input layer
+			loadInputLayer(i, buffer2);	//load test image into input layer
 			calcNetOutput();	//get the output for this test image
 			int output = 0;		//the index of the output node with highest activation energy
 			double highest = 0.0; 	//said highest activation energy
@@ -228,11 +229,11 @@ public class Net {
 				}
 			}
 			//check if it matches the label
-			if(output != labels.get(i)) {
+			if(output != labels2.get(i)) {
 				numWrong++;
 			}
 		}
 		
-		return ((double)numWrong)/(double)numTestImages;
+		return 1.0 - ((double)numWrong)/(double)numTestImages;
 	}
 }
