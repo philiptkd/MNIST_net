@@ -16,7 +16,6 @@
  */
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Random;
@@ -58,8 +57,11 @@ public class Main {
 	private static char[] testingLabels = new char[numTestingImages];
 	
 	//used for accuracy statistics
-	private static int[] labelCounts = new int[10];
-	private static int[] correctCounts = new int[10];
+	private static int[] labelCounts = new int[nodesInLayer2];
+	private static int[] correctCounts = new int[nodesInLayer2];
+	
+	private static Random rand = new Random();
+
 	
 	
 	public static void main(String[] args) throws IOException{
@@ -69,6 +71,10 @@ public class Main {
 			
 			//load training and testing images and labels
 			loadData();
+			
+			trainNet();
+			
+			printAccuracy(1);
 			
 			//print intro and user input options
 				//1. train network
@@ -83,93 +89,29 @@ public class Main {
 		//}
 	}
 	
-	private static void printAccuracy(int dataSet) {
-		//set arrays to hold statistics to zero
-		setToZero(labelCounts);
-		setToZero(correctCounts);
-		
-		char[][] imagesArray;
-		char[] labelsArray;
-		int numImages;
-		
-		if(dataSet == 0) {	//test against training data
-			imagesArray = trainingImages;
-			labelsArray = trainingLabels;
-			numImages = numTrainingImages;
-		}
-		else {	//test against testing data
-			imagesArray = testingImages;
-			labelsArray = testingLabels;
-			numImages = numTestingImages;
-		}
-			
-		for(int image=0; image<numImages; image++) {	//for each image
-			//load a0
-			for(int pixel=0; pixel<a0.length; pixel++) {
-				a0[pixel] = (double)imagesArray[image][pixel];
-			}
-			
-			//feed forward
-			feedForward();
-			
-			//the correct answer
-			int correctClassification = labelsArray[image];
-			
-			//compare with net output
-			checkOutputAccuracy(correctClassification);	
-		}
-		
-		printAccuracyStatistics();
-
-	}
-	
-	private static void printAccuracyStatistics() {
-		
-	}
-	
-	private static void checkOutputAccuracy(int correctClassification) {
-		//find highest activation in output layer
-		double highest = 0;
-		int classification = 0;	//arbitrary
-		for(int j=0; j<a2.length; j++) {
-			if(a2[j] > highest) {
-				highest = a2[j];
-				classification = j;
-			}
-		}
-		
-		//increment the counter for this digit
-		labelCounts[correctClassification]++;
-		
-		//see if the net classified correctly
-		if(classification == correctClassification) {
-			correctCounts[correctClassification]++;
-		}
-	}
-	
 	//Math.random() gives a uniformly random number between 0.0 and 1.0
 	private static void initializeBiasesAndWeights() {
-		//b1
+		//b1		
 		for(int i=0; i<b1.length; i++) {
-			b1[i] = Math.random();
+			b1[i] = rand.nextGaussian();
 		}
 		
 		//b2
 		for(int i=0; i<b2.length; i++) {
-			b2[i] = Math.random();
+			b2[i] = rand.nextGaussian();
 		}
 		
 		//w1
 		for(int k=0; k<a0.length; k++) {
 			for(int j=0; j<a1.length; j++) {
-				w1[j][k] = Math.random();
+				w1[j][k] = rand.nextGaussian();
 			}
 		}
 		
 		//w2
 		for(int k=0; k<a1.length; k++) {
 			for(int j=0; j<a2.length; j++) {
-				w2[j][k] = Math.random();
+				w2[j][k] = rand.nextGaussian();
 			}
 		}
 		
@@ -248,7 +190,7 @@ public class Main {
 	
 	private static void trainNet() {		
 		//create a list that we can shuffle in order to randomize our mini-batches
-		int[] shuffledList = new int[60000];
+		int[] shuffledList = new int[numTrainingImages];
 		for(int i=0; i<shuffledList.length; i++) {
 			shuffledList[i] = i;
 		}
@@ -273,7 +215,7 @@ public class Main {
 					feedForward();
 					
 					//see if it classified correctly
-					checkOutputAccuracy(trainingLabels[shuffledList[input]]);
+					checkOutputAccuracy((int)trainingLabels[shuffledList[input]]);
 					
 					//backpropagate
 					backpropagate(shuffledList[input]);
@@ -281,19 +223,9 @@ public class Main {
 				//update weights/biases
 				updateWeightsAndBiases();
 			}
+			System.out.println("epoch " + epoch + ": ");
 			printAccuracyStatistics();
-		}
-	}
-	
-	private static void setToZero(double[] x) {
-		for(int i=0; i<x.length; i++) {
-			x[i] = 0;
-		}
-	}
-	
-	private static void setToZero(int[] x) {
-		for(int i=0; i<x.length; i++) {
-			x[i] = 0;
+			System.out.println("");
 		}
 	}
 	
@@ -382,6 +314,92 @@ public class Main {
 			int tmp = list[index];
 			list[index] = list[i];
 			list[i] = tmp;
+		}
+	}
+	
+	private static void printAccuracy(int dataSet) {
+		//set arrays to hold statistics to zero
+		setToZero(labelCounts);
+		setToZero(correctCounts);
+		
+		char[][] imagesArray;
+		char[] labelsArray;
+		int numImages;
+		
+		if(dataSet == 0) {	//test against training data
+			imagesArray = trainingImages;
+			labelsArray = trainingLabels;
+			numImages = numTrainingImages;
+		}
+		else {	//test against testing data
+			imagesArray = testingImages;
+			labelsArray = testingLabels;
+			numImages = numTestingImages;
+		}
+			
+		for(int image=0; image<numImages; image++) {	//for each image
+			//load a0
+			for(int pixel=0; pixel<a0.length; pixel++) {
+				a0[pixel] = (double)imagesArray[image][pixel];
+			}
+			
+			//feed forward
+			feedForward();
+			
+			//the correct answer
+			int correctClassification = (int)labelsArray[image];
+			
+			//compare with net output
+			checkOutputAccuracy(correctClassification);	
+		}
+		
+		printAccuracyStatistics();
+
+	}
+	
+	private static void printAccuracyStatistics() {
+		int total = 0;
+		int totalCorrect = 0;
+		
+		for(int i=0; i<labelCounts.length; i++) {
+			total += labelCounts[i];
+			totalCorrect += correctCounts[i];
+			
+			System.out.print(i + ":" + correctCounts[i] + "/" + labelCounts[i] + " ");
+		}
+		System.out.println("");
+		System.out.println("Accuracy = " + totalCorrect + "/" + total + " = " + (double)totalCorrect/(double)total);
+	}
+	
+	private static void checkOutputAccuracy(int correctClassification) {
+		//find highest activation in output layer
+		double highest = 0;
+		int classification = 0;	//arbitrary
+		for(int j=0; j<a2.length; j++) {
+			if(a2[j] > highest) {
+				highest = a2[j];
+				classification = j;
+			}
+		}
+		
+		//increment the counter for this digit
+		labelCounts[correctClassification]++;
+		
+		//see if the net classified correctly
+		if(classification == correctClassification) {
+			correctCounts[correctClassification]++;
+		}
+	}
+	
+	private static void setToZero(double[] x) {
+		for(int i=0; i<x.length; i++) {
+			x[i] = 0;
+		}
+	}
+	
+	private static void setToZero(int[] x) {
+		for(int i=0; i<x.length; i++) {
+			x[i] = 0;
 		}
 	}
 }
