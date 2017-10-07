@@ -7,14 +7,17 @@ import java.util.Random;
 import java.util.Scanner;
 
 public class Main {
-	public static int nodesInLayer0 = 28*28;
-	public static int nodesInLayer1 = 30;
-	public static int nodesInLayer2 = 10;
-	public static int numTrainingImages = 50000;
+	//commented are the example numbers. 
+	//to match example, turn off shuffling, don't scale a0 to 0-1, and don't call loadData() or initializeBiasesAndWeights().
+	public static boolean shuffling = true;
+	public static int nodesInLayer0 = 28*28;//4;//
+	public static int nodesInLayer1 = 30;//3;//
+	public static int nodesInLayer2 = 10;//2;//
+	public static int numTrainingImages = 60000;//4;//
 	public static int numTestingImages = 10000;
-	public static double learningRate = 3.0;
-	public static int epochs = 30;
-	public static int miniBatchSize = 10;
+	public static double learningRate = 3.0;//10.0;//
+	public static int epochs = 30;//6;//
+	public static int miniBatchSize = 10;//2;//
 	
 	
 	//a, z, delta, b, w
@@ -25,11 +28,11 @@ public class Main {
 	private static double[] z1 = new double[nodesInLayer1];
 	private static double[] z2 = new double[nodesInLayer2];
 	
-	private static double[] b1 = new double[nodesInLayer1];
-	private static double[] b2 = new double[nodesInLayer2];
+	private static double[] b1 = new double[nodesInLayer1];//{0.1,-0.36,-0.31};//
+	private static double[] b2 = new double[nodesInLayer2];//{0.16, -0.46};//
 	
-	private static double[][] w1 = new double[nodesInLayer1][nodesInLayer0];
-	private static double[][] w2 = new double[nodesInLayer2][nodesInLayer1];
+	private static double[][] w1 = new double[nodesInLayer1][nodesInLayer0];//{{-0.21, 0.72, -0.25, 1},{-0.94, -0.41, -0.47, 0.63},{0.15, 0.55, -0.49, -0.75}};//
+	private static double[][] w2 = new double[nodesInLayer2][nodesInLayer1];//{{0.76,0.48,-0.73},{0.34,0.89,-0.23}};//
 	
 	private static double[] gb1 = new double[nodesInLayer1];
 	private static double[] gb2 = new double[nodesInLayer2];
@@ -37,8 +40,8 @@ public class Main {
 	private static double[][] gw2 = new double [nodesInLayer2][nodesInLayer1];
 	
 	//training images and labels
-	private static char[][] trainingImages = new char[numTrainingImages][nodesInLayer0];
-	private static char[] trainingLabels = new char[numTrainingImages];
+	private static char[][] trainingImages = new char[numTrainingImages][nodesInLayer0];//{{0,1,0,1},{1,0,1,0},{0,0,1,1},{1,1,0,0}};//
+	private static char[] trainingLabels = new char[numTrainingImages];//{1,0,1,0};//
 	
 	//test images and labels
 	private static char[][] testingImages = new char[numTestingImages][nodesInLayer0];
@@ -49,7 +52,6 @@ public class Main {
 	private static int[] correctCounts = new int[nodesInLayer2];
 	
 	private static Random rand = new Random();
-
 	
 	
 	public static void main(String[] args) throws IOException{
@@ -92,6 +94,7 @@ public class Main {
 					else if (num < 100) c = 'l';
 					else if (num < 150) c = 'h';
 					else if (num < 200) c = '&';
+					else if (num < 225) c = 'x';
 					else c = 'X';
 					System.out.print(c);
 				}
@@ -141,8 +144,8 @@ public class Main {
 			fr = new FileReader("train-images.idx3-ubyte");
 			br = new BufferedReader(fr);
 			br.skip(16);	//skip over the images file header
-			for(int i=0; i<trainingImages.length; i++) {
-				br.read(trainingImages[i], 0, trainingImages[0].length);
+			for(int i=0; i<trainingImages.length; i++) {		//for each image in the file
+				br.read(trainingImages[i], 0, trainingImages[0].length);	//(array to store them in, offset in array, number of bytes to get)
 			}
 			if(br != null) {
 				br.close();
@@ -210,7 +213,9 @@ public class Main {
 		}
 		
 		for(int epoch=0; epoch<epochs; epoch++) {	//for each epoch
-			shuffle(shuffledList);		//shuffle the training set order		
+			if(shuffling) {
+				shuffle(shuffledList);		//shuffle the training set order	
+			}
 			setToZero(labelCounts);
 			setToZero(correctCounts);
 			
@@ -234,7 +239,7 @@ public class Main {
 					checkOutputAccuracy((int)trainingLabels[shuffledList[input]]);
 					
 					//backpropagate
-					backpropagate(shuffledList[input]);
+					backpropagate((int)trainingLabels[shuffledList[input]]);
 				}
 				//update weights/biases
 				updateWeightsAndBiases();
@@ -269,33 +274,36 @@ public class Main {
 		}
 	}
 	
-	private static void backpropagate(int inputImage) {
-		//compute error for layer2
-		//delta2j = (a-y)a(1-a)
-		
+	private static void backpropagate(int correctClassification) {		
 		//to use for calculating gradients later
 		double[] tmpDelta1 = new double[a1.length];
 		double[] tmpDelta2 = new double[a2.length];
 		
+		//set the one-hot vector
+		int[] y = new int[a2.length];	//initializes to all 0s
+		y[correctClassification] = 1;
+		
+		//compute error for layer2
+		//delta2j = (a-y)a(1-a)
 		for(int j=0; j<a2.length; j++) {
-			//set y according to if this is the correct classification
-			int y = 0;
-			if(j == (int)trainingLabels[inputImage]) {
-				y = 1;
-			}
-			
-			tmpDelta2[j] = (a2[j]-y)*a2[j]*(1-a2[j]);
+			tmpDelta2[j] = (a2[j]-y[j])*a2[j]*(1-a2[j]);
 		}
 		
 		//compute error for layer1
-		//delta1k = sum_j delta2j*w2jk*ak*(1-ak)
-		for(int k=0; k<a1.length; k++) {
-			for(int j=0; j<a2.length; j++) {
-				tmpDelta1[k] = tmpDelta1[k] + tmpDelta2[j]*w2[j][k]*a1[k]*(1-a1[k]);
+		//here, the convention I've been using for indices is switched
+			//that is, j indexes into a1 and k into a2
+			//this is so I can have it match Nielsen's online book, chpt 2, eq. 45
+		//delta1j = sum_k delta2k*w2kj*aj*(1-aj)
+		for(int j=0; j<a1.length; j++) {
+			for(int k=0; k<a2.length; k++) {	//sum over k
+				tmpDelta1[j] = tmpDelta1[j] + tmpDelta2[k]*w2[k][j];
 			}
+			tmpDelta1[j] = tmpDelta1[j]*a1[j]*(1-a1[j]);	//multiply by sigma prime
 		}
 		
 		//calculate gradients
+		//they are added to the existing arrays, because we want the sum of the gradient over the whole minibatch
+		//the gradient arrays are zeroed before every minibatch
 		for(int j=0; j<a2.length; j++) {	//dC/db2
 			gb2[j] = gb2[j] + tmpDelta2[j];
 		}
@@ -413,7 +421,7 @@ public class Main {
 	
 	private static void checkOutputAccuracy(int correctClassification) {
 		//find highest activation in output layer
-		double highest = 0;
+		double highest = Double.NEGATIVE_INFINITY;
 		int classification = 0;	//arbitrary
 		for(int j=0; j<a2.length; j++) {
 			if(a2[j] > highest) {
@@ -449,49 +457,5 @@ public class Main {
 		for(int i=0; i<x.length; i++) {
 			x[i] = 0;
 		}
-	}
-	
-	private static void readFromFile(String fileName) {
-		char[] labels;
-		char[][] images;
-		int numImages;
-		
-		if(fileName == "mnist_train.csv") {
-			labels = trainingLabels;
-			images = trainingImages;
-			numImages = numTrainingImages;
-		}
-		else if(fileName == "mnist_test.csv") {
-			labels = testingLabels;
-			images = testingImages;
-			numImages = numTestingImages;
-		}
-		else return;
-		
-		Scanner scanner = null;
-		try {
-			scanner = new Scanner(new File(fileName));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		
-		for(int image=0; image<numImages; image++) {
-			String line = scanner.nextLine();				//get a line of data, which has the label preceding the image data
-			String[] vals = line.split(",");			//split the line on the delimiter ","
-			labels[image] = (char) Integer.parseInt(vals[0]);	//get the label
-			for(int j=1; j<a0.length+1; j++) {			//the next 28*28 values are greyscale values 0-255
-				images[image][j-1] = (char) Integer.parseInt(vals[j]);
-			}
-		}
-		scanner.close();
-	}
-	
-	//use csv and Scanner
-	private static void loadDataCSV() {
-		//get training data
-		readFromFile("mnist_train.csv");
-		
-		//get testing data
-		readFromFile("mnist_test.csv");
 	}
 }
