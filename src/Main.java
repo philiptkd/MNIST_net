@@ -37,12 +37,12 @@ public class Main {
 	private static double[][] gw2 = new double [nodesInLayer2][nodesInLayer1];
 	
 	//training images and labels
-	private static int[][] trainingImages = new int[numTrainingImages][nodesInLayer0];
-	private static int[] trainingLabels = new int[numTrainingImages];
+	private static char[][] trainingImages = new char[numTrainingImages][nodesInLayer0];
+	private static char[] trainingLabels = new char[numTrainingImages];
 	
 	//test images and labels
-	private static int[][] testingImages = new int[numTestingImages][nodesInLayer0];
-	private static int[] testingLabels = new int[numTestingImages];
+	private static char[][] testingImages = new char[numTestingImages][nodesInLayer0];
+	private static char[] testingLabels = new char[numTestingImages];
 	
 	//used for accuracy statistics
 	private static int[] labelCounts = new int[nodesInLayer2];
@@ -131,8 +131,8 @@ public class Main {
 	}
 	
 	private static void readFromFile(String fileName) {
-		int[] labels;
-		int[][] images;
+		char[] labels;
+		char[][] images;
 		int numImages;
 		
 		if(fileName == "mnist_train.csv") {
@@ -157,21 +157,93 @@ public class Main {
 		for(int image=0; image<numImages; image++) {
 			String line = scanner.nextLine();				//get a line of data, which has the label preceding the image data
 			String[] vals = line.split(",");			//split the line on the delimiter ","
-			labels[image] = Integer.parseInt(vals[0]);	//get the label
+			labels[image] = (char) Integer.parseInt(vals[0]);	//get the label
 			for(int j=1; j<a0.length+1; j++) {			//the next 28*28 values are greyscale values 0-255
-				images[image][j-1] = Integer.parseInt(vals[j]);
+				images[image][j-1] = (char) Integer.parseInt(vals[j]);
 			}
 		}
 		scanner.close();
 	}
 	
 	//use csv and Scanner
-	private static void loadData() {
+	private static void loadDataCSV() {
 		//get training data
 		readFromFile("mnist_train.csv");
 		
 		//get testing data
 		readFromFile("mnist_test.csv");
+	}
+	
+	private static void loadData() {
+		FileReader fr;
+		BufferedReader br;
+				
+		try {
+			//training images
+			fr = null;
+			br = null;
+			fr = new FileReader("train-images.idx3-ubyte");
+			br = new BufferedReader(fr);
+			br.skip(16);	//skip over the images file header
+			for(int i=0; i<trainingImages.length; i++) {
+				br.read(trainingImages[i], 0, trainingImages[0].length);
+			}
+			if(br != null) {
+				br.close();
+			}
+			if(fr != null) {
+				fr.close();
+			}
+			
+			//training labels
+			fr = null;
+			br = null;
+			fr = new FileReader("train-labels.idx1-ubyte");
+			br = new BufferedReader(fr);
+			br.skip(8);	//skip over the images file header
+			br.read(trainingLabels, 0, trainingLabels.length);
+			if(br != null) {
+				br.close();
+			}
+			if(fr != null) {
+				fr.close();
+			}
+			
+			//testing images
+			fr = null;
+			br = null;
+			fr = new FileReader("t10k-images.idx3-ubyte");
+			br = new BufferedReader(fr);
+			br.skip(16);	//skip over the images file header
+			for(int i=0; i<testingImages.length; i++) {
+				br.read(testingImages[i], 0, testingImages[0].length);
+			}
+			if(br != null) {
+				br.close();
+			}
+			if(fr != null) {
+				fr.close();
+			}
+					
+			//testing labels
+			fr = null;
+			br = null;
+			fr = new FileReader("t10k-labels.idx1-ubyte");
+			br = new BufferedReader(fr);
+			br.skip(8);	//skip over the images file header
+			br.read(testingLabels, 0, testingLabels.length);
+			if(br != null) {
+				br.close();
+			}
+			if(fr != null) {
+				fr.close();
+			}
+			
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			e.printStackTrace();
+		}
+
 	}
 	
 	private static void trainNet() {		
@@ -334,8 +406,8 @@ public class Main {
 		setToZero(labelCounts);
 		setToZero(correctCounts);
 		
-		int[][] imagesArray;
-		int[] labelsArray;
+		char[][] imagesArray;
+		char[] labelsArray;
 		int numImages;
 		
 		if(dataSet == 0) {	//test against training data
