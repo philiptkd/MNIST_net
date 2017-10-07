@@ -130,50 +130,6 @@ public class Main {
 		
 	}
 	
-	private static void readFromFile(String fileName) {
-		char[] labels;
-		char[][] images;
-		int numImages;
-		
-		if(fileName == "mnist_train.csv") {
-			labels = trainingLabels;
-			images = trainingImages;
-			numImages = numTrainingImages;
-		}
-		else if(fileName == "mnist_test.csv") {
-			labels = testingLabels;
-			images = testingImages;
-			numImages = numTestingImages;
-		}
-		else return;
-		
-		Scanner scanner = null;
-		try {
-			scanner = new Scanner(new File(fileName));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		
-		for(int image=0; image<numImages; image++) {
-			String line = scanner.nextLine();				//get a line of data, which has the label preceding the image data
-			String[] vals = line.split(",");			//split the line on the delimiter ","
-			labels[image] = (char) Integer.parseInt(vals[0]);	//get the label
-			for(int j=1; j<a0.length+1; j++) {			//the next 28*28 values are greyscale values 0-255
-				images[image][j-1] = (char) Integer.parseInt(vals[j]);
-			}
-		}
-		scanner.close();
-	}
-	
-	//use csv and Scanner
-	private static void loadDataCSV() {
-		//get training data
-		readFromFile("mnist_train.csv");
-		
-		//get testing data
-		readFromFile("mnist_test.csv");
-	}
-	
 	private static void loadData() {
 		FileReader fr;
 		BufferedReader br;
@@ -268,7 +224,7 @@ public class Main {
 				for(int input=miniBatch*miniBatchSize; input<(miniBatch+1)*miniBatchSize; input++) {	//for each input image
 					//load a0
 					for(int i=0; i<a0.length; i++) {
-						a0[i] = (double)trainingImages[shuffledList[input]][i];
+						a0[i] = (double)trainingImages[shuffledList[input]][i]/255.0;	//scale to 0-1
 					}
 					
 					//feed forward
@@ -424,7 +380,7 @@ public class Main {
 		for(int image=0; image<numImages; image++) {	//for each image
 			//load a0
 			for(int pixel=0; pixel<a0.length; pixel++) {
-				a0[pixel] = (double)imagesArray[image][pixel];
+				a0[pixel] = (double)imagesArray[image][pixel]/255.0;	//scale to 0-1
 			}
 			
 			//feed forward
@@ -493,5 +449,49 @@ public class Main {
 		for(int i=0; i<x.length; i++) {
 			x[i] = 0;
 		}
+	}
+	
+	private static void readFromFile(String fileName) {
+		char[] labels;
+		char[][] images;
+		int numImages;
+		
+		if(fileName == "mnist_train.csv") {
+			labels = trainingLabels;
+			images = trainingImages;
+			numImages = numTrainingImages;
+		}
+		else if(fileName == "mnist_test.csv") {
+			labels = testingLabels;
+			images = testingImages;
+			numImages = numTestingImages;
+		}
+		else return;
+		
+		Scanner scanner = null;
+		try {
+			scanner = new Scanner(new File(fileName));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		for(int image=0; image<numImages; image++) {
+			String line = scanner.nextLine();				//get a line of data, which has the label preceding the image data
+			String[] vals = line.split(",");			//split the line on the delimiter ","
+			labels[image] = (char) Integer.parseInt(vals[0]);	//get the label
+			for(int j=1; j<a0.length+1; j++) {			//the next 28*28 values are greyscale values 0-255
+				images[image][j-1] = (char) Integer.parseInt(vals[j]);
+			}
+		}
+		scanner.close();
+	}
+	
+	//use csv and Scanner
+	private static void loadDataCSV() {
+		//get training data
+		readFromFile("mnist_train.csv");
+		
+		//get testing data
+		readFromFile("mnist_test.csv");
 	}
 }
