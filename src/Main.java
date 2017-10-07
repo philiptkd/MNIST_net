@@ -103,99 +103,32 @@ public class Main {
 	private static void initializeBiasesAndWeights() {
 		//b1		
 		for(int i=0; i<b1.length; i++) {
-			b1[i] = (rand.nextDouble()- 0.5)*2;
+			b1[i] = (rand.nextDouble()- 0.5);
 		}
 		
 		//b2
 		for(int i=0; i<b2.length; i++) {
-			b2[i] = (rand.nextDouble()- 0.5)*2;
+			b2[i] = (rand.nextDouble()- 0.5);
 		}
 		
 		//w1
 		for(int k=0; k<a0.length; k++) {
 			for(int j=0; j<a1.length; j++) {
-				w1[j][k] = (rand.nextDouble()- 0.5)*2;
+				w1[j][k] = (rand.nextDouble()- 0.5);
 			}
 		}
 		
 		//w2
 		for(int k=0; k<a1.length; k++) {
 			for(int j=0; j<a2.length; j++) {
-				w2[j][k] = (rand.nextDouble()- 0.5)*2;
+				w2[j][k] = (rand.nextDouble()- 0.5);
 			}
 		}
 		
 	}
 	
 	private static void loadData() {
-		FileReader fr;
-		BufferedReader br;
-				
-		try {
-			//training images
-			fr = null;
-			br = null;
-			fr = new FileReader("train-images.idx3-ubyte");
-			br = new BufferedReader(fr);
-			br.skip(16);	//skip over the images file header
-			for(int i=0; i<trainingImages.length; i++) {
-				br.read(trainingImages[i], 0, trainingImages[0].length);
-			}
-			if(br != null) {
-				br.close();
-			}
-			if(fr != null) {
-				fr.close();
-			}
-			
-			//training labels
-			fr = null;
-			br = null;
-			fr = new FileReader("train-labels.idx1-ubyte");
-			br = new BufferedReader(fr);
-			br.skip(8);	//skip over the images file header
-			br.read(trainingLabels, 0, trainingLabels.length);
-			if(br != null) {
-				br.close();
-			}
-			if(fr != null) {
-				fr.close();
-			}
-			
-			//testing images
-			fr = null;
-			br = null;
-			fr = new FileReader("t10k-images.idx3-ubyte");
-			br = new BufferedReader(fr);
-			br.skip(16);	//skip over the images file header
-			for(int i=0; i<testingImages.length; i++) {
-				br.read(testingImages[i], 0, testingImages[0].length);
-			}
-			if(br != null) {
-				br.close();
-			}
-			if(fr != null) {
-				fr.close();
-			}
-					
-			//testing labels
-			fr = null;
-			br = null;
-			fr = new FileReader("t10k-labels.idx1-ubyte");
-			br = new BufferedReader(fr);
-			br.skip(8);	//skip over the images file header
-			br.read(testingLabels, 0, testingLabels.length);
-			if(br != null) {
-				br.close();
-			}
-			if(fr != null) {
-				fr.close();
-			}
-			
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
-			e.printStackTrace();
-		}
+		//use csv and Streamer
 	}
 	
 	private static void trainNet() {		
@@ -206,7 +139,7 @@ public class Main {
 		}
 		
 		for(int epoch=0; epoch<epochs; epoch++) {	//for each epoch
-			//shuffle(shuffledList);		//shuffle the training set order		
+			shuffle(shuffledList);		//shuffle the training set order		
 			setToZero(labelCounts);
 			setToZero(correctCounts);
 			
