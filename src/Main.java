@@ -1,13 +1,16 @@
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Random;
+import java.util.Scanner;
 
 public class Main {
 	public static int nodesInLayer0 = 28*28;
 	public static int nodesInLayer1 = 30;
 	public static int nodesInLayer2 = 10;
-	public static int numTrainingImages = 60000;
+	public static int numTrainingImages = 50000;
 	public static int numTestingImages = 10000;
 	public static double learningRate = 3.0;
 	public static int epochs = 30;
@@ -34,12 +37,12 @@ public class Main {
 	private static double[][] gw2 = new double [nodesInLayer2][nodesInLayer1];
 	
 	//training images and labels
-	private static char[][] trainingImages = new char[numTrainingImages][nodesInLayer0];
-	private static char[] trainingLabels = new char[numTrainingImages];
+	private static int[][] trainingImages = new int[numTrainingImages][nodesInLayer0];
+	private static int[] trainingLabels = new int[numTrainingImages];
 	
 	//test images and labels
-	private static char[][] testingImages = new char[numTestingImages][nodesInLayer0];
-	private static char[] testingLabels = new char[numTestingImages];
+	private static int[][] testingImages = new int[numTestingImages][nodesInLayer0];
+	private static int[] testingLabels = new int[numTestingImages];
 	
 	//used for accuracy statistics
 	private static int[] labelCounts = new int[nodesInLayer2];
@@ -127,8 +130,48 @@ public class Main {
 		
 	}
 	
+	private static void readFromFile(String fileName) {
+		int[] labels;
+		int[][] images;
+		int numImages;
+		
+		if(fileName == "mnist_train.csv") {
+			labels = trainingLabels;
+			images = trainingImages;
+			numImages = numTrainingImages;
+		}
+		else if(fileName == "mnist_test.csv") {
+			labels = testingLabels;
+			images = testingImages;
+			numImages = numTestingImages;
+		}
+		else return;
+		
+		Scanner scanner = null;
+		try {
+			scanner = new Scanner(new File(fileName));
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		
+		for(int image=0; image<numImages; image++) {
+			String line = scanner.nextLine();				//get a line of data, which has the label preceding the image data
+			String[] vals = line.split(",");			//split the line on the delimiter ","
+			labels[image] = Integer.parseInt(vals[0]);	//get the label
+			for(int j=1; j<a0.length+1; j++) {			//the next 28*28 values are greyscale values 0-255
+				images[image][j-1] = Integer.parseInt(vals[j]);
+			}
+		}
+		scanner.close();
+	}
+	
+	//use csv and Scanner
 	private static void loadData() {
-		//use csv and Streamer
+		//get training data
+		readFromFile("mnist_train.csv");
+		
+		//get testing data
+		readFromFile("mnist_test.csv");
 	}
 	
 	private static void trainNet() {		
@@ -291,8 +334,8 @@ public class Main {
 		setToZero(labelCounts);
 		setToZero(correctCounts);
 		
-		char[][] imagesArray;
-		char[] labelsArray;
+		int[][] imagesArray;
+		int[] labelsArray;
 		int numImages;
 		
 		if(dataSet == 0) {	//test against training data
