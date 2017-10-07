@@ -4,14 +4,14 @@ import java.io.IOException;
 import java.util.Random;
 
 public class Main {
-	public static int nodesInLayer0 = 4;//28*28;
-	public static int nodesInLayer1 = 3;//30;
-	public static int nodesInLayer2 = 2;//10;
-	public static int numTrainingImages = 4;//60000;
+	public static int nodesInLayer0 = 28*28;
+	public static int nodesInLayer1 = 30;
+	public static int nodesInLayer2 = 10;
+	public static int numTrainingImages = 60000;
 	public static int numTestingImages = 10000;
-	public static double learningRate = 10.0;//3.0;
-	public static int epochs = 2;//30;
-	public static int miniBatchSize = 2;//10;
+	public static double learningRate = 3.0;
+	public static int epochs = 30;
+	public static int miniBatchSize = 10;
 	
 	
 	//a, z, delta, b, w
@@ -22,11 +22,11 @@ public class Main {
 	private static double[] z1 = new double[nodesInLayer1];
 	private static double[] z2 = new double[nodesInLayer2];
 	
-	private static double[] b1 = {0.1,-0.36,-0.31};//new double[nodesInLayer1];
-	private static double[] b2 = {0.16, -0.46};//new double[nodesInLayer2];
+	private static double[] b1 = new double[nodesInLayer1];
+	private static double[] b2 = new double[nodesInLayer2];
 	
-	private static double[][] w1 = {{-0.21, 0.72, -0.25, 1},{-0.94, -0.41, -0.47, 0.63},{0.15, 0.55, -0.49, -0.75}};//new double[nodesInLayer1][nodesInLayer0];
-	private static double[][] w2 = {{0.76,0.48,-0.73},{0.34,0.89,-0.23}};//new double[nodesInLayer2][nodesInLayer1];
+	private static double[][] w1 = new double[nodesInLayer1][nodesInLayer0];
+	private static double[][] w2 = new double[nodesInLayer2][nodesInLayer1];
 	
 	private static double[] gb1 = new double[nodesInLayer1];
 	private static double[] gb2 = new double[nodesInLayer2];
@@ -34,8 +34,8 @@ public class Main {
 	private static double[][] gw2 = new double [nodesInLayer2][nodesInLayer1];
 	
 	//training images and labels
-	private static char[][] trainingImages = {{0,1,0,1},{1,0,1,0},{0,0,1,1},{1,1,0,0}};//new char[numTrainingImages][nodesInLayer0];
-	private static char[] trainingLabels = {1,0,1,0};//new char[numTrainingImages];
+	private static char[][] trainingImages = new char[numTrainingImages][nodesInLayer0];
+	private static char[] trainingLabels = new char[numTrainingImages];
 	
 	//test images and labels
 	private static char[][] testingImages = new char[numTestingImages][nodesInLayer0];
@@ -52,16 +52,16 @@ public class Main {
 	public static void main(String[] args) throws IOException{
 		//while(true) {
 			//initialize b,w with random numbers
-			//initializeBiasesAndWeights();
+			initializeBiasesAndWeights();
 			
 			//load training and testing images and labels
-			//loadData();
+			loadData();
 				
 			//printData();
 			
 			trainNet();
 			
-			//printAccuracy(1);
+			printAccuracy(1);
 			
 			//print intro and user input options
 				//1. train network
@@ -98,29 +98,30 @@ public class Main {
 		}
 	}
 	
-	//Math.random() gives a uniformly random number between 0.0 and 1.0
+	//nextDouble() gives a uniformly random number between 0.0 and 1.0
+	//(rand.nextDouble()- 0.5)*2 gives a uniformly random number between -1.0 and 1.0
 	private static void initializeBiasesAndWeights() {
 		//b1		
 		for(int i=0; i<b1.length; i++) {
-			b1[i] = rand.nextGaussian();
+			b1[i] = (rand.nextDouble()- 0.5)*2;
 		}
 		
 		//b2
 		for(int i=0; i<b2.length; i++) {
-			b2[i] = rand.nextGaussian();
+			b2[i] = (rand.nextDouble()- 0.5)*2;
 		}
 		
 		//w1
 		for(int k=0; k<a0.length; k++) {
 			for(int j=0; j<a1.length; j++) {
-				w1[j][k] = rand.nextGaussian();
+				w1[j][k] = (rand.nextDouble()- 0.5)*2;
 			}
 		}
 		
 		//w2
 		for(int k=0; k<a1.length; k++) {
 			for(int j=0; j<a2.length; j++) {
-				w2[j][k] = rand.nextGaussian();
+				w2[j][k] = (rand.nextDouble()- 0.5)*2;
 			}
 		}
 		
