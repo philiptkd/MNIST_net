@@ -1,34 +1,17 @@
-/*
- * TODO: create and train a neural net to classify handwritten digits from the MNIST data set
- * 
- * choose eps based on ulp?
- * 		eps = x0*sqrt(ulp)		(if x0 != 0)
-
- * restructure net to have weights/biases in one array
- * 
- * figure out how to find the gradient of a function
- * 		use forward difference rather than central to compute partial derivatives so we need only compute the cost function once per derivative
- * 		dC/dw_i = (C_{w_i + eps} - C_{w_i})/eps
- * 		C(w,b) = Sum_x ||y(x)-a||^2/(2n)
- * 			where a is the vector of outputs when x is input, y(x) is the desired output, and n is the numbe4 of training inputs
- * 		let V denote the current vector of weights and biases for the net
- * 		V' = V - eta*grad(C(V))
- */
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Random;
 
 public class Main {
-	public static int nodesInLayer0 = 28*28;
-	public static int nodesInLayer1 = 30;
-	public static int nodesInLayer2 = 10;
-	public static int numTrainingImages = 60000;
+	public static int nodesInLayer0 = 4;//28*28;
+	public static int nodesInLayer1 = 3;//30;
+	public static int nodesInLayer2 = 2;//10;
+	public static int numTrainingImages = 4;//60000;
 	public static int numTestingImages = 10000;
-	public static double learningRate = 3.0;
-	public static int epochs = 30;
-	public static int miniBatchSize = 10;
+	public static double learningRate = 10.0;//3.0;
+	public static int epochs = 2;//30;
+	public static int miniBatchSize = 2;//10;
 	
 	
 	//a, z, delta, b, w
@@ -39,18 +22,20 @@ public class Main {
 	private static double[] z1 = new double[nodesInLayer1];
 	private static double[] z2 = new double[nodesInLayer2];
 	
-	private static double[] b1 = new double[nodesInLayer1];
-	private static double[] b2 = new double[nodesInLayer2];
+	private static double[] b1 = {0.1,-0.36,-0.31};//new double[nodesInLayer1];
+	private static double[] b2 = {0.16, -0.46};//new double[nodesInLayer2];
 	
-	private static double[][] w1 = new double[nodesInLayer1][nodesInLayer0];
-	private static double[][] w2 = new double[nodesInLayer2][nodesInLayer1];
+	private static double[][] w1 = {{-0.21, 0.72, -0.25, 1},{-0.94, -0.41, -0.47, 0.63},{0.15, 0.55, -0.49, -0.75}};//new double[nodesInLayer1][nodesInLayer0];
+	private static double[][] w2 = {{0.76,0.48,-0.73},{0.34,0.89,-0.23}};//new double[nodesInLayer2][nodesInLayer1];
 	
-	private static double[] delta1 = new double[nodesInLayer1];
-	private static double[] delta2 = new double[nodesInLayer2];
+	private static double[] gb1 = new double[nodesInLayer1];
+	private static double[] gb2 = new double[nodesInLayer2];
+	private static double[][] gw1 = new double [nodesInLayer1][nodesInLayer0];	
+	private static double[][] gw2 = new double [nodesInLayer2][nodesInLayer1];
 	
 	//training images and labels
-	private static char[][] trainingImages = new char[numTrainingImages][nodesInLayer0];
-	private static char[] trainingLabels = new char[numTrainingImages];
+	private static char[][] trainingImages = {{0,1,0,1},{1,0,1,0},{0,0,1,1},{1,1,0,0}};//new char[numTrainingImages][nodesInLayer0];
+	private static char[] trainingLabels = {1,0,1,0};//new char[numTrainingImages];
 	
 	//test images and labels
 	private static char[][] testingImages = new char[numTestingImages][nodesInLayer0];
@@ -67,14 +52,16 @@ public class Main {
 	public static void main(String[] args) throws IOException{
 		//while(true) {
 			//initialize b,w with random numbers
-			initializeBiasesAndWeights();
+			//initializeBiasesAndWeights();
 			
 			//load training and testing images and labels
-			loadData();
+			//loadData();
+				
+			//printData();
 			
 			trainNet();
 			
-			printAccuracy(1);
+			//printAccuracy(1);
 			
 			//print intro and user input options
 				//1. train network
@@ -87,6 +74,28 @@ public class Main {
 			//wait for user input
 			//switch on user input to do the thing
 		//}
+	}
+	
+	static void printData() {
+		for(int i=0; i<numTrainingImages; i++) {
+			for(int j=0; j<28; j++) {
+				for(int k=0; k<28; k++) {
+					int num = (int)(trainingImages[i][j*28 + k]);
+					char c;
+					if(j == 0 || j == 27) c = '-';
+					else if(k == 0 || k == 27) c = '|';
+					else if(num < 10) c = ' ';
+					else if (num < 50) c = '.';
+					else if (num < 100) c = 'l';
+					else if (num < 150) c = 'h';
+					else if (num < 200) c = '&';
+					else c = 'X';
+					System.out.print(c);
+				}
+				System.out.println("");
+			}
+			System.out.println((int)trainingLabels[i]);
+		}
 	}
 	
 	//Math.random() gives a uniformly random number between 0.0 and 1.0
@@ -196,14 +205,16 @@ public class Main {
 		}
 		
 		for(int epoch=0; epoch<epochs; epoch++) {	//for each epoch
-			shuffle(shuffledList);		//shuffle the training set order		
+			//shuffle(shuffledList);		//shuffle the training set order		
 			setToZero(labelCounts);
 			setToZero(correctCounts);
 			
 			for(int miniBatch=0; miniBatch<shuffledList.length/miniBatchSize; miniBatch++) {	//for each miniBatch
 				//initialize delta1 and delta2 to 0
-				setToZero(delta1);
-				setToZero(delta2);
+				setToZero(gb1);
+				setToZero(gb2);
+				setToZero(gw1);
+				setToZero(gw2);
 				
 				for(int input=miniBatch*miniBatchSize; input<(miniBatch+1)*miniBatchSize; input++) {	//for each input image
 					//load a0
@@ -256,6 +267,11 @@ public class Main {
 	private static void backpropagate(int inputImage) {
 		//compute error for layer2
 		//delta2j = (a-y)a(1-a)
+		
+		//to use for calculating gradients later
+		double[] tmpDelta1 = new double[a1.length];
+		double[] tmpDelta2 = new double[a2.length];
+		
 		for(int j=0; j<a2.length; j++) {
 			//set y according to if this is the correct classification
 			int y = 0;
@@ -263,41 +279,60 @@ public class Main {
 				y = 1;
 			}
 			
-			delta2[j] = delta2[j] + (a2[j]-y)*a2[j]*(1-a2[j]);	//this is divided by miniBatchSize later
+			tmpDelta2[j] = (a2[j]-y)*a2[j]*(1-a2[j]);
 		}
 		
 		//compute error for layer1
 		//delta1k = sum_j delta2j*w2jk*ak*(1-ak)
 		for(int k=0; k<a1.length; k++) {
 			for(int j=0; j<a2.length; j++) {
-				delta1[k] = delta1[k] + delta2[j]*w2[j][k]*a1[k]*(1-a1[k]);	//this is divided by miniBatchSize later
+				tmpDelta1[k] = tmpDelta1[k] + tmpDelta2[j]*w2[j][k]*a1[k]*(1-a1[k]);
 			}
 		}
+		
+		//calculate gradients
+		for(int j=0; j<a2.length; j++) {	//dC/db2
+			gb2[j] = gb2[j] + tmpDelta2[j];
+		}
+		for(int k=0; k<a1.length; k++) {	//dC/db1
+			gb1[k] = gb1[k] + tmpDelta1[k];
+		}
+		for(int j=0; j<a2.length; j++) {	//dC/dw2
+			for(int k=0; k<a1.length; k++) {
+				gw2[j][k] = gw2[j][k] + tmpDelta2[j]*a1[k];
+			}
+		}
+		for(int j=0; j<a1.length; j++) {	//dC/dw1
+			for(int k=0; k<a0.length; k++) {
+				gw1[j][k] = gw1[j][k] + tmpDelta1[j]*a0[k];
+			}
+		}
+		
 	}
 	
 	//gradients are divided by miniBatchSize because they are the sum of all gradients over the miniBatch
 	private static void updateWeightsAndBiases() {
 		//dC/db2 = delta2
 		for(int j=0; j<a2.length; j++) {
-			b2[j] = b2[j] - learningRate*delta2[j]/miniBatchSize;
+			b2[j] = b2[j] - learningRate*gb2[j]/miniBatchSize;
 		}
 		
 		//dC/db1 = delta1
 		for(int k=0; k<a1.length; k++) {
-			b1[k] = b1[k] - learningRate*delta1[k]/miniBatchSize;
+			b1[k] = b1[k] - learningRate*gb1[k]/miniBatchSize;
 		}
 		
 		//dC/dw2jk = delta2j*a1k
 		for(int j=0; j<a2.length; j++) {
 			for(int k=0; k<a1.length; k++) {
-				w2[j][k] = w2[j][k] - learningRate*delta2[j]*a1[k]/miniBatchSize;
+				w2[j][k] = w2[j][k] - learningRate*gw2[j][k]/miniBatchSize;
 			}
 		}
 		
 		//dC/dw1jk = delta1j*a0k
 		for(int j=0; j<a1.length; j++) {
 			for(int k=0; k<a0.length; k++) {
-				w1[j][k] = w1[j][k] - learningRate*delta1[j]*a0[k]/miniBatchSize;
+				w1[j][k] = w1[j][k] - learningRate*gw1[j][k]/miniBatchSize;
 			}
 		}
 	}
@@ -394,6 +429,14 @@ public class Main {
 	private static void setToZero(double[] x) {
 		for(int i=0; i<x.length; i++) {
 			x[i] = 0;
+		}
+	}
+	
+	private static void setToZero(double[][] x) {
+		for(int i=0; i<x.length; i++) {
+			for(int j=0; j<x[0].length; j++) {
+				x[i][j] = 0;
+			}
 		}
 	}
 	
