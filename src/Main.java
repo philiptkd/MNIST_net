@@ -1,10 +1,6 @@
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.IOException;
 import java.util.Random;
-import java.util.Scanner;
 
 public class Main {
 	//commented are the example numbers. 
@@ -30,7 +26,6 @@ public class Main {
 	
 	private static double[] b1 = new double[nodesInLayer1];//{0.1,-0.36,-0.31};//
 	private static double[] b2 = new double[nodesInLayer2];//{0.16, -0.46};//
-	
 	private static double[][] w1 = new double[nodesInLayer1][nodesInLayer0];//{{-0.21, 0.72, -0.25, 1},{-0.94, -0.41, -0.47, 0.63},{0.15, 0.55, -0.49, -0.75}};//
 	private static double[][] w2 = new double[nodesInLayer2][nodesInLayer1];//{{0.76,0.48,-0.73},{0.34,0.89,-0.23}};//
 	
@@ -54,7 +49,7 @@ public class Main {
 	private static Random rand = new Random();
 	
 	
-	public static void main(String[] args) throws IOException{
+	public static void main(String[] args) {
 		//while(true) {
 			//initialize b,w with random numbers
 			initializeBiasesAndWeights();
@@ -81,6 +76,7 @@ public class Main {
 		//}
 	}
 	
+
 	static void printData() {
 		for(int i=0; i<numTrainingImages; i++) {
 			for(int j=0; j<28; j++) {
@@ -104,30 +100,65 @@ public class Main {
 		}
 	}
 	
+	private static void gradientChecking(int correctClassification) {
+		double eps = 0.0001;
+		//dC/db1
+		b1[0] = b1[0] + eps;
+		feedForward();
+		double C1 = cost(correctClassification);
+		
+		b1[0] = b1[0] - 2*eps;
+		feedForward();
+		double C2 = cost(correctClassification);
+		
+		b1[0] = b1[0] + eps;
+		
+		
+		System.out.println("dC/db1[0] = " + (C1-C2)/(2*eps));
+		System.out.println("gb1[0] = " + gb1[0]/miniBatchSize);
+		
+		
+		//dC/dw1
+	}
+	
+	//assumes already fed forward
+	private static double cost(int correctClassification) {
+		int[] y = new int[a2.length];
+		y[correctClassification] = 1;
+		
+		double C = 0;
+		for(int i=0; i<a2.length; i++) {
+			C = C + Math.pow(y[i]-a2[i], 2);
+		}
+		C = C/2;
+		
+		return C;
+	}
+	
 	//nextDouble() gives a uniformly random number between 0.0 and 1.0
 	//(rand.nextDouble()- 0.5)*2 gives a uniformly random number between -1.0 and 1.0
 	private static void initializeBiasesAndWeights() {
 		//b1		
 		for(int i=0; i<b1.length; i++) {
-			b1[i] = (rand.nextDouble()- 0.5);
+			b1[i] = (rand.nextDouble()- 0.5)*2;
 		}
 		
 		//b2
 		for(int i=0; i<b2.length; i++) {
-			b2[i] = (rand.nextDouble()- 0.5);
+			b2[i] = (rand.nextDouble()- 0.5)*2;
 		}
 		
 		//w1
 		for(int k=0; k<a0.length; k++) {
 			for(int j=0; j<a1.length; j++) {
-				w1[j][k] = (rand.nextDouble()- 0.5);
+				w1[j][k] = (rand.nextDouble()- 0.5)*2;
 			}
 		}
 		
 		//w2
 		for(int k=0; k<a1.length; k++) {
 			for(int j=0; j<a2.length; j++) {
-				w2[j][k] = (rand.nextDouble()- 0.5);
+				w2[j][k] = (rand.nextDouble()- 0.5)*2;
 			}
 		}
 		
@@ -220,7 +251,7 @@ public class Main {
 			setToZero(correctCounts);
 			
 			for(int miniBatch=0; miniBatch<shuffledList.length/miniBatchSize; miniBatch++) {	//for each miniBatch
-				//initialize delta1 and delta2 to 0
+				//initialize gradients to zero
 				setToZero(gb1);
 				setToZero(gb2);
 				setToZero(gw1);
@@ -242,12 +273,46 @@ public class Main {
 					backpropagate((int)trainingLabels[shuffledList[input]]);
 				}
 				//update weights/biases
+				gradientChecking(shuffledList[(miniBatch+1)*miniBatchSize-1]);	//the last input of the loop is the one still loaded into a0
 				updateWeightsAndBiases();
+				//printWeightsAndBiases();
 			}
 			System.out.println("epoch " + epoch + ": ");
 			printAccuracyStatistics();
 			System.out.println("");
 		}
+	}
+	
+	private static void printWeightsAndBiases() {
+		//b2
+		for(int j=0; j<a2.length; j++) {
+			System.out.print(b2[j] + " ");
+		}
+		System.out.println("");
+		
+		//b1
+		for(int j=0; j<a1.length; j++) {
+			System.out.print(b1[j] + " ");
+		}
+		System.out.println("");
+		
+		//w2
+//		for(int j=0; j<a2.length; j++) {
+//			for(int k=0; k<a1.length; k++) {
+//				System.out.print(w2[j][k] + " ");
+//			}
+//			System.out.println("");
+//		}
+//		System.out.println("");
+//		
+//		//w1
+//		for(int j=0; j<a1.length; j++) {
+//			for(int k=0; k<a0.length; k++) {
+//				System.out.print(w1[j][k] + " ");
+//			}
+//			System.out.println("");
+//		}
+//		System.out.println("");
 	}
 	
 	private static void feedForward() {
@@ -325,24 +390,24 @@ public class Main {
 	
 	//gradients are divided by miniBatchSize because they are the sum of all gradients over the miniBatch
 	private static void updateWeightsAndBiases() {
-		//dC/db2 = delta2
+		//b2
 		for(int j=0; j<a2.length; j++) {
 			b2[j] = b2[j] - learningRate*gb2[j]/miniBatchSize;
 		}
 		
-		//dC/db1 = delta1
+		//b1
 		for(int k=0; k<a1.length; k++) {
 			b1[k] = b1[k] - learningRate*gb1[k]/miniBatchSize;
 		}
 		
-		//dC/dw2jk = delta2j*a1k
+		//w2
 		for(int j=0; j<a2.length; j++) {
 			for(int k=0; k<a1.length; k++) {
 				w2[j][k] = w2[j][k] - learningRate*gw2[j][k]/miniBatchSize;
 			}
 		}
 		
-		//dC/dw1jk = delta1j*a0k
+		//w1
 		for(int j=0; j<a1.length; j++) {
 			for(int k=0; k<a0.length; k++) {
 				w1[j][k] = w1[j][k] - learningRate*gw1[j][k]/miniBatchSize;
@@ -356,7 +421,6 @@ public class Main {
 	
 	//shuffles a list
 	private static void shuffle(int[] list) {
-		Random rand = new Random();
 		for(int i=list.length-1; i>=0; i--) {
 			int index = rand.nextInt(i+1);
 			int tmp = list[index];
