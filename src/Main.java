@@ -103,22 +103,20 @@ public class Main {
 	private static void gradientChecking(int correctClassification) {
 		double eps = 0.0001;
 		//dC/db1
-		b1[0] = b1[0] + eps;
+		w1[5][350] = w1[5][350] + eps;
 		feedForward();
 		double C1 = cost(correctClassification);
 		
-		b1[0] = b1[0] - 2*eps;
+		w1[5][350] = w1[5][350] - 2*eps;
 		feedForward();
 		double C2 = cost(correctClassification);
 		
-		b1[0] = b1[0] + eps;
+		w1[5][350] = w1[5][350] + eps;
 		
 		
-		System.out.println("dC/db1[0] = " + (C1-C2)/(2*eps));
-		System.out.println("gb1[0] = " + gb1[0]/miniBatchSize);
-		
-		
-		//dC/dw1
+		System.out.println("dC/dw1[5][350] = " + (C1-C2)/(2*eps));
+		System.out.println("gw1[5][350] = " + gw1[5][350]);
+		System.out.println("");
 	}
 	
 	//assumes already fed forward
@@ -271,9 +269,14 @@ public class Main {
 					
 					//backpropagate
 					backpropagate((int)trainingLabels[shuffledList[input]]);
+					
+					//check gradient against numerical calculation. only valid for first input in minibatch
+					if(input == miniBatch*miniBatchSize) {
+						gradientChecking((int)trainingLabels[shuffledList[input]]);
+					}
+
 				}
 				//update weights/biases
-				gradientChecking(shuffledList[(miniBatch+1)*miniBatchSize-1]);	//the last input of the loop is the one still loaded into a0
 				updateWeightsAndBiases();
 				//printWeightsAndBiases();
 			}
