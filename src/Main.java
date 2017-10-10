@@ -1,5 +1,9 @@
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.InputStreamReader;
+import java.io.RandomAccessFile;
 import java.util.Random;
 
 public class Main {
@@ -7,7 +11,7 @@ public class Main {
 	//to match example, turn off shuffling, don't scale a0 to 0-1, and don't call loadData() or initializeBiasesAndWeights().
 	public static boolean shuffling = true;
 	public static int nodesInLayer0 = 28*28;//4;//
-	public static int nodesInLayer1 = 100;//3;//
+	public static int nodesInLayer1 = 30;//3;//
 	public static int nodesInLayer2 = 10;//2;//
 	public static int numTrainingImages = 50000;//4;//
 	public static int numTestingImages = 10000;
@@ -50,30 +54,65 @@ public class Main {
 	
 	
 	public static void main(String[] args) {
-		//while(true) {
-			//initialize b,w with random numbers
-			initializeBiasesAndWeights();
-			
-			//load training and testing images and labels
-			loadData();
-				
-			//printData();
-			
-			trainNet();
-			
-			printAccuracy(1);
-			
+		boolean trained = false;
+		System.out.println("This is a program that demonstrates a basic neural network that classifies handwritten digits from the MNIST data set. " + 
+				"\nIt uses stochastic gradient descent with backpropagation to train the network.\n");
+		while(true) {
 			//print intro and user input options
-				//1. train network
-				//2. load pre-trained network
-				//3. display network accuracy on training data
-				//4. display network accuracy on testing data
-				//5. save network state to file
-				//6. exit
+			System.out.println("Choose from the options below.\n");
+			System.out.println("[1] Train network");
+			System.out.println("[2] Load pre-trained network");
+			if(trained) {
+				System.out.println("[3] Display network accuracy on training data");
+				System.out.println("[4] Display network accuracy on testing data");
+				System.out.println("[5] Save network state to file");
+			}
+			System.out.println("[6] Exit");
+			
+			//load data
+			loadData();
 			
 			//wait for user input
+			int selection = 0;
+			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+			try {
+				selection = Integer.parseInt(br.readLine());
+			} catch (Exception e) {
+				System.out.println("Something went wrong. Please choose from the options below.");
+			}
+			
 			//switch on user input to do the thing
-		//}
+			switch(selection) {
+			case 0: //do nothing
+				break;
+			case 1: //train network
+				initializeBiasesAndWeights();
+				trainNet();
+				trained = true;
+				break;
+			case 2: //load pre-trained network
+				readFromFile();
+				trained = true;
+				break;
+			case 3: //display network accuracy on training data
+				if(trained) {
+					printAccuracy(0);
+				}
+				break;
+			case 4: //display network accuracy on testing data
+				if(trained) {
+					printAccuracy(1);
+				}
+				break;
+			case 5: //save network state to file
+				if(trained) {
+					writeToFile();
+				}
+				break;
+			case 6: //exit
+				return;
+			}
+		}
 	}
 	
 	private static void loadData() {
@@ -218,7 +257,7 @@ public class Main {
 		
 	}
 	
-	
+
 	private static void trainNet() {		
 		//create a list that we can shuffle in order to randomize our mini-batches
 		int[] shuffledList = new int[numTrainingImages];
@@ -406,6 +445,79 @@ public class Main {
 			for(int k=0; k<a0.length; k++) {
 				w1[j][k] = w1[j][k] - learningRate*gw1[j][k]/miniBatchSize;
 			}
+		}
+	}
+	
+	private static void readFromFile() {
+		RandomAccessFile reader = null;
+		try {
+			reader = new RandomAccessFile("weights", "r");
+			
+			//b1
+			for(int k=0; k<b1.length; k++) {
+				b1[k] = reader.readDouble();
+			}
+			
+			//b2
+			for(int j=0; j<b2.length; j++) {
+				b2[j] = reader.readDouble();
+			}
+			
+			//w1
+			for(int j=0; j<a1.length; j++) {
+				for(int k=0; k<a0.length; k++) {
+					w1[j][k] = reader.readDouble();
+				}
+			}
+			
+			//w2
+			for(int j=0; j<a2.length; j++) {
+				for(int k=0; k<a1.length; k++) {
+					w2[j][k] = reader.readDouble();
+				}
+			}
+			
+			reader.close();
+		}
+		catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+	}
+	
+	
+	private static void writeToFile() {
+		RandomAccessFile writer = null;
+		try {
+			writer = new RandomAccessFile("weights", "rw");
+			
+			//b1
+			for(int k=0; k<b1.length; k++) {
+				writer.writeDouble(b1[k]);
+			}
+			
+			//b2
+			for(int j=0; j<b2.length; j++) {
+				writer.writeDouble(b2[j]);
+			}
+			
+			//w1
+			for(int j=0; j<a1.length; j++) {
+				for(int k=0; k<a0.length; k++) {
+					writer.writeDouble(w1[j][k]);
+				}
+			}
+			
+			//w2
+			for(int j=0; j<a2.length; j++) {
+				for(int k=0; k<a1.length; k++) {
+					writer.writeDouble(w2[j][k]);
+				}
+			}
+			
+			writer.close();
+		}
+		catch(Exception e) {
+			System.out.println(e.getMessage());
 		}
 	}
 	
