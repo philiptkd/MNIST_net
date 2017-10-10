@@ -7,9 +7,9 @@ public class Main {
 	//to match example, turn off shuffling, don't scale a0 to 0-1, and don't call loadData() or initializeBiasesAndWeights().
 	public static boolean shuffling = true;
 	public static int nodesInLayer0 = 28*28;//4;//
-	public static int nodesInLayer1 = 30;//3;//
+	public static int nodesInLayer1 = 100;//3;//
 	public static int nodesInLayer2 = 10;//2;//
-	public static int numTrainingImages = 60000;//4;//
+	public static int numTrainingImages = 50000;//4;//
 	public static int numTestingImages = 10000;
 	public static double learningRate = 3.0;//10.0;//
 	public static int epochs = 30;//6;//
@@ -35,12 +35,12 @@ public class Main {
 	private static double[][] gw2 = new double [nodesInLayer2][nodesInLayer1];
 	
 	//training images and labels
-	private static char[][] trainingImages = new char[numTrainingImages][nodesInLayer0];//{{0,1,0,1},{1,0,1,0},{0,0,1,1},{1,1,0,0}};//
-	private static char[] trainingLabels = new char[numTrainingImages];//{1,0,1,0};//
+	private static int[][] trainingImages = new int[numTrainingImages][nodesInLayer0];//{{0,1,0,1},{1,0,1,0},{0,0,1,1},{1,1,0,0}};//
+	private static int[] trainingLabels = new int[numTrainingImages];//{1,0,1,0};//
 	
 	//test images and labels
-	private static char[][] testingImages = new char[numTestingImages][nodesInLayer0];
-	private static char[] testingLabels = new char[numTestingImages];
+	private static int[][] testingImages = new int[numTestingImages][nodesInLayer0];
+	private static int[] testingLabels = new int[numTestingImages];
 	
 	//used for accuracy statistics
 	private static int[] labelCounts = new int[nodesInLayer2];
@@ -76,8 +76,43 @@ public class Main {
 		//}
 	}
 	
-
-	static void printData() {
+	private static void loadData() {
+		String trainCSVFile = "mnist_train.csv";
+		String testCSVFile = "mnist_test.csv";
+		BufferedReader br = null;
+		String line;
+		String[] splitLine;
+		
+		try {
+			br = new BufferedReader(new FileReader(trainCSVFile));
+			for(int i=0; i<numTrainingImages; i++) {
+				line = br.readLine();
+				splitLine = line.split(",");
+				trainingLabels[i] = Integer.parseInt(splitLine[0]);
+				for(int j=0; j<trainingImages[0].length; j++) {
+					trainingImages[i][j] = Integer.parseInt(splitLine[j+1]);
+				}
+			}
+			br.close();
+			
+			br = new BufferedReader(new FileReader(testCSVFile));
+			for(int i=0; i<numTestingImages; i++) {
+				line = br.readLine();
+				splitLine = line.split(",");
+				testingLabels[i] = Integer.parseInt(splitLine[0]);
+				for(int j=0; j<testingImages[0].length; j++) {
+					testingImages[i][j] = Integer.parseInt(splitLine[j+1]);
+				}
+			}
+			br.close();
+			
+		}
+		catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+	}
+	
+	private static void printData() {
 		for(int i=0; i<numTrainingImages; i++) {
 			for(int j=0; j<28; j++) {
 				for(int k=0; k<28; k++) {
@@ -183,79 +218,6 @@ public class Main {
 		
 	}
 	
-	private static void loadData() {
-		FileReader fr;
-		BufferedReader br;
-				
-		try {
-			//training images
-			fr = null;
-			br = null;
-			fr = new FileReader("train-images.idx3-ubyte");
-			br = new BufferedReader(fr);
-			
-			br.skip(16);
-			
-			for(int i=0; i<trainingImages.length; i++) {		//for each image in the file
-				br.read(trainingImages[i], 0, trainingImages[0].length);	//(array to store them in, offset in array, number of bytes to get)
-			}
-			if(br != null) {
-				br.close();
-			}
-			if(fr != null) {
-				fr.close();
-			}
-			
-			//training labels
-			fr = null;
-			br = null;
-			fr = new FileReader("train-labels.idx1-ubyte");
-			br = new BufferedReader(fr);
-			br.skip(8);	//skip over the images file header. 4 characters is 8 bytes
-			br.read(trainingLabels, 0, trainingLabels.length);
-			if(br != null) {
-				br.close();
-			}
-			if(fr != null) {
-				fr.close();
-			}
-			
-			//testing images
-			fr = null;
-			br = null;
-			fr = new FileReader("t10k-images.idx3-ubyte");
-			br = new BufferedReader(fr);
-			br.skip(16);	//skip over the images file header
-			for(int i=0; i<testingImages.length; i++) {
-				br.read(testingImages[i], 0, testingImages[0].length);
-			}
-			if(br != null) {
-				br.close();
-			}
-			if(fr != null) {
-				fr.close();
-			}
-					
-			//testing labels
-			fr = null;
-			br = null;
-			fr = new FileReader("t10k-labels.idx1-ubyte");
-			br = new BufferedReader(fr);
-			br.skip(8);	//skip over the images file header
-			br.read(testingLabels, 0, testingLabels.length);
-			if(br != null) {
-				br.close();
-			}
-			if(fr != null) {
-				fr.close();
-			}
-			
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
-			e.printStackTrace();
-		}
-
-	}
 	
 	private static void trainNet() {		
 		//create a list that we can shuffle in order to randomize our mini-batches
@@ -281,7 +243,11 @@ public class Main {
 				for(int input=miniBatch*miniBatchSize; input<(miniBatch+1)*miniBatchSize; input++) {	//for each input image
 					//load a0
 					for(int i=0; i<a0.length; i++) {
-						a0[i] = (double)trainingImages[shuffledList[input]][i]/255.0;	//scale to 0-1
+						a0[i] = (double)(trainingImages[shuffledList[input]][i])/255.0;	//scale to 0-1
+						if(a0[i] < 0 || a0[i] > 1)
+						{
+							System.out.println(a0[i]);
+						}
 					}
 					//load correct classification
 					int correctClassification = (int)trainingLabels[shuffledList[input]];
@@ -462,8 +428,8 @@ public class Main {
 		setToZero(labelCounts);
 		setToZero(correctCounts);
 		
-		char[][] imagesArray;
-		char[] labelsArray;
+		int[][] imagesArray;
+		int[] labelsArray;
 		int numImages;
 		
 		if(dataSet == 0) {	//test against training data
@@ -522,22 +488,20 @@ public class Main {
 			}
 		}
 		
-		//testing
-		if(epoch > 0) {
-			//print a2
-			for(int j=0; j<a2.length; j++) {
-				System.out.print(j + ": " + a2[j] + "  ");
-			}
-			System.out.println("");
-			
-			//print a0 and label
-			printInputAndLabel(correctClassification);
-			
-			//print correct classification
-			System.out.println(classification);
-			
-			int testing = 0;
-		}
+//		//testing
+//		if(epoch > 0) {
+//			//print a2
+//			for(int j=0; j<a2.length; j++) {
+//				System.out.print(j + ": " + a2[j] + "  ");
+//			}
+//			System.out.println("");
+//			
+//			//print a0 and label
+//			printInputAndLabel(correctClassification);
+//			
+//			//print correct classification
+//			System.out.println(classification);
+//		}
 		
 		
 		//increment the counter for this digit
