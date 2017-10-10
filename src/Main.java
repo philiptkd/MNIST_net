@@ -100,6 +100,27 @@ public class Main {
 		}
 	}
 	
+	private static void printInputAndLabel(int correctClassification) {
+		for(int j=0; j<28; j++) {
+			for(int k=0; k<28; k++) {
+				int num = (int)(a0[j*28 + k]*255.0);
+				char c;
+				if(j == 0 || j == 27) c = '-';
+				else if(k == 0 || k == 27) c = '|';
+				else if(num < 10) c = ' ';
+				else if (num < 50) c = '.';
+				else if (num < 100) c = 'l';
+				else if (num < 150) c = 'h';
+				else if (num < 200) c = '&';
+				else if (num < 225) c = 'x';
+				else c = 'X';
+				System.out.print(c);
+			}
+			System.out.println("");
+		}
+		System.out.println(correctClassification);
+	}
+	
 	private static void gradientChecking(int correctClassification) {
 		double eps = 0.0001;
 		//dC/db1
@@ -172,7 +193,9 @@ public class Main {
 			br = null;
 			fr = new FileReader("train-images.idx3-ubyte");
 			br = new BufferedReader(fr);
-			br.skip(16);	//skip over the images file header
+			
+			br.skip(16);
+			
 			for(int i=0; i<trainingImages.length; i++) {		//for each image in the file
 				br.read(trainingImages[i], 0, trainingImages[0].length);	//(array to store them in, offset in array, number of bytes to get)
 			}
@@ -188,7 +211,7 @@ public class Main {
 			br = null;
 			fr = new FileReader("train-labels.idx1-ubyte");
 			br = new BufferedReader(fr);
-			br.skip(8);	//skip over the images file header
+			br.skip(8);	//skip over the images file header. 4 characters is 8 bytes
 			br.read(trainingLabels, 0, trainingLabels.length);
 			if(br != null) {
 				br.close();
@@ -260,20 +283,22 @@ public class Main {
 					for(int i=0; i<a0.length; i++) {
 						a0[i] = (double)trainingImages[shuffledList[input]][i]/255.0;	//scale to 0-1
 					}
+					//load correct classification
+					int correctClassification = (int)trainingLabels[shuffledList[input]];
 					
 					//feed forward
 					feedForward();
 					
 					//see if it classified correctly
-					checkOutputAccuracy((int)trainingLabels[shuffledList[input]]);
+					checkOutputAccuracy(correctClassification, epoch);
 					
 					//backpropagate
-					backpropagate((int)trainingLabels[shuffledList[input]]);
+					backpropagate(correctClassification);
 					
 					//check gradient against numerical calculation. only valid for first input in minibatch
-					if(input == miniBatch*miniBatchSize) {
-						gradientChecking((int)trainingLabels[shuffledList[input]]);
-					}
+//					if(input == miniBatch*miniBatchSize) {
+//						gradientChecking((int)trainingLabels[shuffledList[input]]);
+//					}
 
 				}
 				//update weights/biases
@@ -465,7 +490,7 @@ public class Main {
 			int correctClassification = (int)labelsArray[image];
 			
 			//compare with net output
-			checkOutputAccuracy(correctClassification);	
+			checkOutputAccuracy(correctClassification, 0);	
 		}
 		
 		printAccuracyStatistics();
@@ -486,7 +511,7 @@ public class Main {
 		System.out.println("Accuracy = " + totalCorrect + "/" + total + " = " + (double)totalCorrect/(double)total);
 	}
 	
-	private static void checkOutputAccuracy(int correctClassification) {
+	private static void checkOutputAccuracy(int correctClassification, int epoch) {
 		//find highest activation in output layer
 		double highest = Double.NEGATIVE_INFINITY;
 		int classification = 0;	//arbitrary
@@ -496,6 +521,24 @@ public class Main {
 				classification = j;
 			}
 		}
+		
+		//testing
+		if(epoch > 0) {
+			//print a2
+			for(int j=0; j<a2.length; j++) {
+				System.out.print(j + ": " + a2[j] + "  ");
+			}
+			System.out.println("");
+			
+			//print a0 and label
+			printInputAndLabel(correctClassification);
+			
+			//print correct classification
+			System.out.println(classification);
+			
+			int testing = 0;
+		}
+		
 		
 		//increment the counter for this digit
 		labelCounts[correctClassification]++;
