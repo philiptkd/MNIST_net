@@ -7,7 +7,6 @@ import java.util.Random;
 /*
  * todo: 
  * use cross entropy cost function
- * L2 regularization
  * add comments giving description, inputs, and outputs of each method
  */
 
@@ -23,6 +22,7 @@ public class Main {
 	public static double learningRate = 3.0;//10.0;//
 	public static int epochs = 30;//6;//
 	public static int miniBatchSize = 10;//2;//
+	private static double lambda = 0.1;
 	
 	
 	//a, z, delta, b, w
@@ -57,7 +57,6 @@ public class Main {
 	
 	private static Random rand = new Random();
 	private static boolean fancy = false;
-	
 	
 	public static void main(String[] args) {
 		boolean trained = false;
@@ -346,7 +345,13 @@ public class Main {
 
 				}
 				//update weights/biases
-				updateWeightsAndBiases();
+				if(fancy) {
+					updateFancyWeights();
+				}
+				else {
+					updateWeightsAndBiases();
+				}
+				
 				//printWeightsAndBiases();
 			}
 			System.out.println("epoch " + epoch + ": ");
@@ -485,6 +490,27 @@ public class Main {
 				w1[j][k] = w1[j][k] - learningRate*gw1[j][k]/miniBatchSize;
 			}
 		}
+	}
+	
+	//uses L2 regularization to add weight decay during the update
+	private static void updateFancyWeights() {
+		updateWeightsAndBiases();	//do the regular update
+		double weightDecay = learningRate*lambda/numTrainingImages;
+		
+		//w2. add L2 regularization
+		for(int j=0; j<a2.length; j++) {
+			for(int k=0; k<a1.length; k++) {
+				w2[j][k] = w2[j][k] - weightDecay*w2[j][k];
+			}
+		}
+		
+		//w1. add L2 regularization
+		for(int j=0; j<a1.length; j++) {
+			for(int k=0; k<a0.length; k++) {
+				w1[j][k] = w1[j][k] - weightDecay*w1[j][k];
+			}
+		}
+		
 	}
 	
 	private static void readFromFile() {
