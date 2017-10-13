@@ -1,10 +1,15 @@
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.util.Random;
+
+/*
+ * todo: 
+ * use cross entropy cost function
+ * L2 regularization
+ * add comments giving description, inputs, and outputs of each method
+ */
 
 public class Main {
 	//commented are the example numbers. 
@@ -51,6 +56,7 @@ public class Main {
 	private static int[] correctCounts = new int[nodesInLayer2];
 	
 	private static Random rand = new Random();
+	private static boolean fancy = false;
 	
 	
 	public static void main(String[] args) {
@@ -61,13 +67,14 @@ public class Main {
 			//print intro and user input options
 			System.out.println("Choose from the options below.\n");
 			System.out.println("[1] Train network");
-			System.out.println("[2] Load pre-trained network");
+			System.out.println("[2] Train network (fancy)");
+			System.out.println("[3] Load pre-trained network");
 			if(trained) {
-				System.out.println("[3] Display network accuracy on training data");
-				System.out.println("[4] Display network accuracy on testing data");
-				System.out.println("[5] Save network state to file");
+				System.out.println("[4] Display network accuracy on training data");
+				System.out.println("[5] Display network accuracy on testing data");
+				System.out.println("[6] Save network state to file");
 			}
-			System.out.println("[6] Exit");
+			System.out.println("[7] Exit");
 			
 			//load data
 			loadData();
@@ -86,30 +93,37 @@ public class Main {
 			case 0: //do nothing
 				break;
 			case 1: //train network
+				fancy = false;
 				initializeBiasesAndWeights();
 				trainNet();
 				trained = true;
 				break;
-			case 2: //load pre-trained network
+			case 2: //train network (fancy)
+				fancy = true;
+				fancyWeights();
+				trainNet();
+				trained = true;
+				break;
+			case 3: //load pre-trained network
 				readFromFile();
 				trained = true;
 				break;
-			case 3: //display network accuracy on training data
+			case 4: //display network accuracy on training data
 				if(trained) {
 					printAccuracy(0);
 				}
 				break;
-			case 4: //display network accuracy on testing data
+			case 5: //display network accuracy on testing data
 				if(trained) {
 					printAccuracy(1);
 				}
 				break;
-			case 5: //save network state to file
+			case 6: //save network state to file
 				if(trained) {
 					writeToFile();
 				}
 				break;
-			case 6: //exit
+			case 7: //exit
 				return;
 			}
 		}
@@ -257,7 +271,32 @@ public class Main {
 		
 	}
 	
-
+	private static void fancyWeights() {
+		//b1 is initialized the same		
+				for(int i=0; i<b1.length; i++) {
+					b1[i] = (rand.nextDouble()- 0.5)*2;
+				}
+				
+		//b2 is initialized the same
+		for(int i=0; i<b2.length; i++) {
+			b2[i] = (rand.nextDouble()- 0.5)*2;
+		}
+		
+		//w1. we lower the variance for each weight in order to lower the variance of the activations in the next layer
+		for(int k=0; k<a0.length; k++) {
+			for(int j=0; j<a1.length; j++) {
+				w1[j][k] = rand.nextGaussian()/Math.sqrt(a0.length);	//std dev. = 1/numInputNodes
+			}
+		}
+		
+		//w2. we lower the variance for each weight in order to lower the variance of the activations in the next layer
+		for(int k=0; k<a1.length; k++) {
+			for(int j=0; j<a2.length; j++) {
+				w2[j][k] = rand.nextGaussian()/Math.sqrt(a1.length);	//std dev. = 1/humHiddenNodes
+			}
+		}
+	}
+	
 	private static void trainNet() {		
 		//create a list that we can shuffle in order to randomize our mini-batches
 		int[] shuffledList = new int[numTrainingImages];
@@ -347,7 +386,7 @@ public class Main {
 //		}
 //		System.out.println("");
 	}
-	
+
 	private static void feedForward() {
 		//calculate z1 and a1
 		for(int j=0; j<a1.length; j++) {	//for each neuron in layer1
