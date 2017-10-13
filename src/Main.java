@@ -465,6 +465,10 @@ public class Main {
 		
 	}
 	
+	private static void fancyBackpropagate() {
+		
+	}
+	
 	//gradients are divided by miniBatchSize because they are the sum of all gradients over the miniBatch
 	private static void updateWeightsAndBiases() {
 		//b2
