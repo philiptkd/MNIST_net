@@ -425,10 +425,14 @@ public class Main {
 		int[] y = new int[a2.length];	//initializes to all 0s
 		y[correctClassification] = 1;
 		
-		//compute error for layer2
+		//compute error for layer2. 
+		//using a cross-entropy cost only affects this part of the calculation
 		//delta2j = (a-y)a(1-a)
 		for(int j=0; j<a2.length; j++) {
-			tmpDelta2[j] = (a2[j]-y[j])*a2[j]*(1-a2[j]);
+			tmpDelta2[j] = (a2[j]-y[j]);	//cross entropy cost
+			if(!fancy) {
+				tmpDelta2[j] = tmpDelta2[j]*a2[j]*(1-a2[j]);	//MSE cost
+			}
 		}
 		
 		//compute error for layer1
@@ -462,10 +466,6 @@ public class Main {
 				gw1[j][k] = gw1[j][k] + tmpDelta1[j]*a0[k];
 			}
 		}
-		
-	}
-	
-	private static void fancyBackpropagate() {
 		
 	}
 	
