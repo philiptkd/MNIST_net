@@ -23,7 +23,7 @@ public class Main {
 	public static int nodesInLayer1 = 30;
 	public static int nodesInLayer2 = 10;
 	public static int numTrainingImages = 50000;
-	public static int numTestingImages = 10000;
+	public static int numTestingImages = 2890;//10000;
 	public static double initialLearningRate = 3.0;
 	public static double finalLearningRate = 3.0;		//set this lower than initial to have a linear learning rate schedule 
 	public static int epochs = 30;
