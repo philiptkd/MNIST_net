@@ -3,6 +3,7 @@ import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
 import java.util.Random;
+import java.io.File;
 
 /*
  * Philip Raeisghasem
@@ -19,7 +20,7 @@ public class Main {
 	//network constants
 	public static boolean shuffling = true;
 	public static int nodesInLayer0 = 28*28;
-	public static int nodesInLayer1 = 100;
+	public static int nodesInLayer1 = 30;
 	public static int nodesInLayer2 = 10;
 	public static int numTrainingImages = 50000;
 	public static int numTestingImages = 10000;
@@ -61,13 +62,24 @@ public class Main {
 	private static int[] correctCounts = new int[nodesInLayer2];
 	
 	private static Random rand = new Random();
-	private static boolean fancy = true;
+	private static boolean fancy = false;
 	private static boolean earlyStopping = false;
 	private static double lastAccuracy = 0.0;
 	private static int numEpochsThatCanSuck = 3;
 	private static int numEpochsThatSucked = 0;
 	
+	//global variables for cmd line arguments
+	public static String trainCSVFileString;
+	public static String testCSVFileString;
+	public static String weightsFileString;
+	
 	public static void main(String[] args) {
+		
+		boolean argsGood = getArgs(args);
+		if(!argsGood) {
+			return;
+		}
+		
 		boolean trained = false;
 		System.out.println("This is a program that demonstrates a basic neural network that classifies handwritten digits from the MNIST data set. " + 
 				"\nIt uses stochastic gradient descent with backpropagation to train the network.\n");
@@ -129,18 +141,53 @@ public class Main {
 		}
 	}
 	
+	//to check if the command line arguments are good
+	private static boolean getArgs(String[] args) {
+		//ensure there are three command line arguments
+		if(args.length != 3) {
+			System.out.println("This takes 3 arguments: trainCSVFile, testCSVFile, and weightsFile");
+			return false;
+		}
+		
+		//get command line arguments
+		trainCSVFileString = args[0];
+		testCSVFileString = args[1];
+		weightsFileString = args[2];
+		
+		//see if files exist
+		File trainFile = new File(trainCSVFileString);
+		File testFile = new File(testCSVFileString);
+		File weightsFile = new File(weightsFileString);
+		
+		//build error string to print
+		String errorString = "";
+		if(!trainFile.exists()) {
+			errorString += trainCSVFileString + " not found.\n";
+		}
+		if(!testFile.exists()) {
+			errorString += testCSVFileString + " not found.\n";
+		}
+		if(!weightsFile.exists()) {
+			errorString += weightsFileString + " not found.\n";
+		}
+		
+		if(errorString != "") {
+			System.out.println(errorString);
+			return false;
+		}
+		
+		return true;
+	}
 	
 	//reads the training and testing data from CSV files and into the static arrays defined above
 	//also separates labels and image data
 	private static void loadData() {
-		String trainCSVFile = "mnist_train.csv";
-		String testCSVFile = "mnist_test.csv";
 		BufferedReader br = null;
 		String line;
 		String[] splitLine;
 		
 		try {
-			br = new BufferedReader(new FileReader(trainCSVFile));
+			br = new BufferedReader(new FileReader(trainCSVFileString));
 			for(int i=0; i<numTrainingImages; i++) {
 				line = br.readLine();
 				splitLine = line.split(",");
@@ -151,7 +198,7 @@ public class Main {
 			}
 			br.close();
 			
-			br = new BufferedReader(new FileReader(testCSVFile));
+			br = new BufferedReader(new FileReader(testCSVFileString));
 			for(int i=0; i<numTestingImages; i++) {
 				line = br.readLine();
 				splitLine = line.split(",");
@@ -613,7 +660,7 @@ public class Main {
 	private static void readFromFile() {
 		RandomAccessFile reader = null;
 		try {
-			reader = new RandomAccessFile("weights", "r");
+			reader = new RandomAccessFile(weightsFileString, "r");
 			
 			//b1
 			for(int k=0; k<b1.length; k++) {
@@ -650,7 +697,7 @@ public class Main {
 	private static void writeToFile() {
 		RandomAccessFile writer = null;
 		try {
-			writer = new RandomAccessFile("weights", "rw");
+			writer = new RandomAccessFile(weightsFileString, "rw");
 			
 			//b1
 			for(int k=0; k<b1.length; k++) {
