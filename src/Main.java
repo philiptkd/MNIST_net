@@ -22,8 +22,8 @@ public class Main {
 	public static int nodesInLayer0 = 28*28;
 	public static int nodesInLayer1 = 30;
 	public static int nodesInLayer2 = 10;
-	public static int numTrainingImages = 50000;
-	public static int numTestingImages = 2890;//10000;
+	public static int numTrainingImages = 0; //50000;
+	public static int numTestingImages = 0; //2890;//10000;
 	public static double initialLearningRate = 3.0;
 	public static double finalLearningRate = 3.0;		//set this lower than initial to have a linear learning rate schedule 
 	public static int epochs = 30;
@@ -50,12 +50,12 @@ public class Main {
 	private static double[][] gw2 = new double [nodesInLayer2][nodesInLayer1];
 	
 	//arrays to hold training images and labels
-	private static int[][] trainingImages = new int[numTrainingImages][nodesInLayer0];
-	private static int[] trainingLabels = new int[numTrainingImages];
+	private static int[][] trainingImages;
+	private static int[] trainingLabels;
 	
 	//arrays to hold test images and labels
-	private static int[][] testingImages = new int[numTestingImages][nodesInLayer0];
-	private static int[] testingLabels = new int[numTestingImages];
+	private static int[][] testingImages;
+	private static int[] testingLabels;
 	
 	//used for accuracy statistics
 	private static int[] labelCounts = new int[nodesInLayer2];
@@ -82,6 +82,9 @@ public class Main {
 			return;
 		}
 			
+		//get number of lines in training and testing data
+		getNumLines();
+		
 		//load data
 		loadData();
 			
@@ -162,6 +165,32 @@ public class Main {
 		}
 		
 		return true;
+	}
+	
+	//gets the number of training and testing images in the input CSVs
+	private static void getNumLines() {
+		try {
+			BufferedReader reader = new BufferedReader(new FileReader(trainCSVFileString));
+			while (reader.readLine() != null) numTrainingImages++;
+			reader.close();
+			
+			reader = new BufferedReader(new FileReader(testCSVFileString));
+			while (reader.readLine() != null) numTestingImages++;
+			reader.close();
+		}
+		catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+		
+		//initialize arrays to hold training and testing data
+		
+		//arrays to hold training images and labels
+		trainingImages = new int[numTrainingImages][nodesInLayer0];
+		trainingLabels = new int[numTrainingImages];
+		
+		//arrays to hold test images and labels
+		testingImages = new int[numTestingImages][nodesInLayer0];
+		testingLabels = new int[numTestingImages];
 	}
 	
 	//reads the training and testing data from CSV files and into the static arrays defined above
