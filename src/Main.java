@@ -69,6 +69,8 @@ public class Main {
 	private static int numEpochsThatSucked = 0;
 	
 	//global variables for cmd line arguments
+	public static int task1;
+	public static int task2;
 	public static String trainCSVFileString;
 	public static String testCSVFileString;
 	public static String weightsFileString;
@@ -79,88 +81,72 @@ public class Main {
 		if(!argsGood) {
 			return;
 		}
+			
+		//load data
+		loadData();
+			
+		//do task1
+		if(task1 == 1) {
+			fancyWeights();
+			trainNet();
+		}
+		else {	//task = 2
+			readFromFile();
+		}
 		
-		boolean trained = false;
-		System.out.println("This is a program that demonstrates a basic neural network that classifies handwritten digits from the MNIST data set. " + 
-				"\nIt uses stochastic gradient descent with backpropagation to train the network.\n");
-		while(true) {
-			//print intro and user input options
-			System.out.println("Choose from the options below.\n");
-			System.out.println("[1] Train network");
-			System.out.println("[2] Load pre-trained network");
-			if(trained) {
-				System.out.println("[3] Display network accuracy on training data");
-				System.out.println("[4] Display network accuracy on testing data");
-				System.out.println("[5] Save network state to file");
-			}
-			System.out.println("[6] Exit");
-			
-			//load data
-			loadData();
-			
-			//wait for user input
-			int selection = 0;
-			BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-			try {
-				selection = Integer.parseInt(br.readLine());
-			} catch (Exception e) {
-				System.out.println("Something went wrong. Please choose from the options below.");
-			}
-			
-			//switch on user input to do the thing
-			switch(selection) {
-			case 0: //do nothing
-				break;
-			case 1: //train network
-				fancyWeights();
-				trainNet();
-				trained = true;
-				break;
-			case 2: //load pre-trained network
-				readFromFile();
-				trained = true;
-				break;
-			case 3: //display network accuracy on training data
-				if(trained) {
-					printAccuracy(0);
-				}
-				break;
-			case 4: //display network accuracy on testing data
-				if(trained) {
-					printAccuracy(1);
-				}
-				break;
-			case 5: //save network state to file
-				if(trained) {
-					writeToFile();
-				}
-				break;
-			case 6: //exit
-				return;
-			}
+		//do task2
+		if(task2 == 3) {
+			printAccuracy(0);
+		}
+		else if(task2 == 4) {
+			printAccuracy(1);
+		}
+		else {	//task2 = 5
+			writeToFile();
 		}
 	}
 	
 	//to check if the command line arguments are good
 	private static boolean getArgs(String[] args) {
-		//ensure there are three command line arguments
-		if(args.length != 3) {
-			System.out.println("This takes 3 arguments: trainCSVFile, testCSVFile, and weightsFile");
+		//ensure there are five command line arguments
+		if(args.length != 5) {
+			System.out.println("This takes 5 arguments: task1, task2, trainCSVFile, testCSVFile, and weightsFile");
+			System.out.println("[1]: Train Net");
+			System.out.println("[2]: Load From File");
+			System.out.println("[3]: Print Accuracy on Training Data");
+			System.out.println("[4]: Print Accuracy on Test Data");
+			System.out.println("[5]: Save to File");
 			return false;
 		}
 		
 		//get command line arguments
-		trainCSVFileString = args[0];
-		testCSVFileString = args[1];
-		weightsFileString = args[2];
+		trainCSVFileString = args[2];
+		testCSVFileString = args[3];
+		weightsFileString = args[4];
 		
 		//see if files exist
 		File trainFile = new File(trainCSVFileString);
 		File testFile = new File(testCSVFileString);
 		File weightsFile = new File(weightsFileString);
 		
+		
 		//build error string to print
 		String errorString = "";
+		try {
+			task1 = Integer.parseInt(args[0]);
+			task2 = Integer.parseInt(args[1]);
+			
+			if(task1 < 1 || task1 > 2) {
+				errorString += "task1 should be 1 or 2";
+			}
+			if(task2 < 3 || task2 > 5) {
+				errorString += "task2 should be 3, 4, or 5";
+			}
+		}
+		catch(Error NumberFormatException) {
+			errorString += "task1 and task2 should be integers between 1 and 5";
+		}
+		
 		if(!trainFile.exists()) {
 			errorString += trainCSVFileString + " not found.\n";
 		}
@@ -170,7 +156,6 @@ public class Main {
 		if(!weightsFile.exists()) {
 			errorString += weightsFileString + " not found.\n";
 		}
-		
 		if(errorString != "") {
 			System.out.println(errorString);
 			return false;
