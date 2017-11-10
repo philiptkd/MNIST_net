@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.InputStreamReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.Random;
 import java.io.File;
@@ -8,7 +9,6 @@ import java.io.File;
 /*
  * Philip Raeisghasem
  * 102 08 738
- * 17 October 2017
  * CSC 475
  * Assignment 2
  * 
@@ -26,7 +26,7 @@ public class Main {
 	public static int numTestingImages = 0; //2890;//10000;
 	public static double initialLearningRate = 3.0;
 	public static double finalLearningRate = 3.0;		//set this lower than initial to have a linear learning rate schedule 
-	public static int epochs = 30;
+	public static int epochs = 10; //30;
 	public static int miniBatchSize = 10;
 	private static double lambda = 0.1;
 	
@@ -74,6 +74,7 @@ public class Main {
 	public static String trainCSVFileString;
 	public static String testCSVFileString;
 	public static String weightsFileString;
+	public static String outputCSVFileString;
 	
 	public static void main(String[] args) {
 		
@@ -99,10 +100,10 @@ public class Main {
 		
 		//do task2
 		if(task2 == 3) {
-			printAccuracy(0);
+			printAccuracy(0, true);
 		}
 		else if(task2 == 4) {
-			printAccuracy(1);
+			printAccuracy(1, true);
 		}
 		else {	//task2 = 5
 			writeToFile();
@@ -112,8 +113,8 @@ public class Main {
 	//to check if the command line arguments are good
 	private static boolean getArgs(String[] args) {
 		//ensure there are five command line arguments
-		if(args.length != 5) {
-			System.out.println("This takes 5 arguments: task1, task2, trainCSVFile, testCSVFile, and weightsFile");
+		if(args.length != 6) {
+			System.out.println("This takes 6 arguments: task1, task2, trainCSVFile, testCSVFile, weightsFile, and outputCSVFile");
 			System.out.println("[1]: Train Net");
 			System.out.println("[2]: Load From File");
 			System.out.println("[3]: Print Accuracy on Training Data");
@@ -126,12 +127,13 @@ public class Main {
 		trainCSVFileString = args[2];
 		testCSVFileString = args[3];
 		weightsFileString = args[4];
+		outputCSVFileString = args[5];
 		
 		//see if files exist
 		File trainFile = new File(trainCSVFileString);
 		File testFile = new File(testCSVFileString);
 		File weightsFile = new File(weightsFileString);
-		
+		File outputFile = new File(outputCSVFileString);
 		
 		//build error string to print
 		String errorString = "";
@@ -149,15 +151,27 @@ public class Main {
 		catch(Error NumberFormatException) {
 			errorString += "task1 and task2 should be integers between 1 and 5";
 		}
-		
-		if(!trainFile.exists()) {
+		if(!trainFile.isFile()) {
 			errorString += trainCSVFileString + " not found.\n";
 		}
-		if(!testFile.exists()) {
+		if(!testFile.isFile()) {
 			errorString += testCSVFileString + " not found.\n";
 		}
-		if(!weightsFile.exists()) {
-			errorString += weightsFileString + " not found.\n";
+		if(!weightsFile.isFile()) {
+			try {
+				weightsFile.createNewFile();
+			} catch (IOException e) {
+				System.out.println(e.getMessage());
+			}
+			//errorString += weightsFileString + " not found.\n";
+		}
+		if(!outputFile.isFile()) {
+			try {
+				outputFile.createNewFile();
+			} catch (IOException e) {
+				System.out.println(e.getMessage());
+			}
+			//errorString += outputCSVFileString + " not found.\n";
 		}
 		if(errorString != "") {
 			System.out.println(errorString);
@@ -795,10 +809,9 @@ public class Main {
 		return (double)numCorrect/(double)numTestingImages;
 	}
 	
-	
 	//method used to check classification accuracy against either the training or testing set
 	//also prints detailed accuracy statistics
-	private static void printAccuracy(int dataSet) {
+	private static void printAccuracy(int dataSet, boolean outputToCSV) {
 		//set arrays to hold statistics to zero
 		setToZero(labelCounts);
 		setToZero(correctCounts);
@@ -834,8 +847,12 @@ public class Main {
 			checkOutputAccuracy(correctClassification);	
 		}
 		
-		printAccuracyStatistics();
-
+		if(outputToCSV) {
+			writeToCSV();
+		}
+		else {
+			printAccuracyStatistics();
+		}
 	}
 	
 	//prints how well the network did in classifying each digit
@@ -851,6 +868,40 @@ public class Main {
 		}
 		System.out.println("");
 		System.out.println("Accuracy = " + totalCorrect + "/" + total + " = " + (double)totalCorrect/(double)total);
+	}
+	
+	//a replacement for printAccuracyStatistics that writes to a CSV instead of printing
+	private static void writeToCSV() {
+		try {
+			FileWriter writer = new FileWriter(outputCSVFileString, true);
+			StringBuilder builder = new StringBuilder();
+			
+			int total = 0;
+			int totalCorrect = 0;
+			
+			for(int i=0; i<labelCounts.length; i++) {
+				total += labelCounts[i];
+				totalCorrect += correctCounts[i];
+				
+				//build a string delimited by commas
+				builder.append((double)correctCounts[i]/(double)labelCounts[i]);
+				builder.append(", ");
+			}
+			builder.append((double)totalCorrect/(double)total);
+			builder.append("\n");
+			
+			//write to the file
+			writer.write(builder.toString());
+			
+			//clean out builder
+			builder.delete(0, builder.length());
+			
+			//close writer
+			writer.close();
+		}
+		catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
 	}
 	
 	//increments the counts for each digit and for each correct classification
