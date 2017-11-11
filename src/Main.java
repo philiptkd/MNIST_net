@@ -26,7 +26,7 @@ public class Main {
 	public static int numTestingImages = 0; //2890;//10000;
 	public static double initialLearningRate = 3.0;
 	public static double finalLearningRate = 3.0;		//set this lower than initial to have a linear learning rate schedule 
-	public static int epochs = 10; //30;
+	public static int epochs = 30;
 	public static int miniBatchSize = 10;
 	private static double lambda = 0.1;
 	
